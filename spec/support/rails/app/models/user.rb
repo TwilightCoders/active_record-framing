@@ -9,4 +9,5 @@ class User < ::ActiveRecord::Base
     where(kind: 1)
   }
 
+  default_frame { where(deleted_at: nil) }
 end

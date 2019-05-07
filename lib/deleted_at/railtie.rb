@@ -7,9 +7,10 @@ module DeletedAt
   class Railtie < Rails::Railtie
     initializer 'deleted_at.load' do |_app|
       ActiveSupport.on_load(:active_record) do
-        ::ActiveRecord::Base.prepend(DeletedAt::Core)
-        ::ActiveRecord::ConnectionAdapters::TableDefinition.prepend(DeletedAt::TableDefinition)
-        ::ActiveRecord::Associations::Association.prepend(DeletedAt::Association)
+        # ::ActiveRecord::Base.prepend(DeletedAt::Core)
+
+        # ::ActiveRecord::ConnectionAdapters::TableDefinition.prepend(DeletedAt::TableDefinition)
+        # ::ActiveRecord::Associations::Association.prepend(DeletedAt::Association)
       end
     end
   end

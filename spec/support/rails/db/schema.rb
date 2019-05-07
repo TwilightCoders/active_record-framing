@@ -6,12 +6,15 @@ ActiveRecord::Schema.define do
     t.string :email, index: :btree
     t.integer :kind, default: 0
     t.timestamps null: false, deleted_at: true
+    t.timestamp :deleted_at # Remove
   end
 
   create_table :documents, force: true do |t|
     t.integer :user_id
     t.string :title
+    t.integer :scope
     t.timestamps null: false, deleted_at: true
+    t.timestamp :deleted_at # Remove
   end
 
   create_table :comments, force: true do |t|

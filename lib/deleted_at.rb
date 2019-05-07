@@ -1,57 +1,60 @@
-require 'deleted_at/version'
-require 'deleted_at/railtie' if defined?(Rails::Railtie)
+# require 'deleted_at/version'
+# require 'deleted_at/railtie' if defined?(Rails::Railtie)
+# require 'active_record/framing/railtie' if defined?(Rails::Railtie)
 require 'deleted_at/core_ext/thread'
-require 'deleted_at/core_ext/kernel'
+# require 'deleted_at/core_ext/kernel'
 
-module DeletedAt
+require 'active_record/framing'
 
-  MissingColumn = Class.new(StandardError)
+# module DeletedAt
 
-  DEFAULT_OPTIONS = {
-    column: :deleted_at,
-    proc: -> { Time.now.utc }
-  }
+#   MissingColumn = Class.new(StandardError)
 
-  class << self
-    attr_writer :logger
-    attr_reader :disabled
+#   DEFAULT_OPTIONS = {
+#     column: :deleted_at,
+#     proc: -> { Time.now.utc }
+#   }
 
-    def logger
-      @logger ||= Logger.new($stdout).tap do |log|
-        log.progname = self.name
-        log.level = Logger::INFO
-      end
-    end
-  end
+#   class << self
+#     attr_writer :logger
+#     attr_reader :disabled
 
-  @disabled = false
+#     def logger
+#       @logger ||= Logger.new($stdout).tap do |log|
+#         log.progname = self.name
+#         log.level = Logger::INFO
+#       end
+#     end
+#   end
 
-  def self.disabled?
-    @disabled == true
-  end
+#   @disabled = false
 
-  def self.disable
-    @disabled = true
-  end
+#   def self.disabled?
+#     @disabled == true
+#   end
 
-  def self.enable
-    @disabled = false
-  end
+#   def self.disable
+#     @disabled = true
+#   end
 
-  def self.gemspec
-    @gemspec ||= eval(`gem spec deleted_at --ruby`).freeze
-  end
+#   def self.enable
+#     @disabled = false
+#   end
 
-  def self.install(model)
-    logger.warn <<~STR
-      Great news! You're using the new and improved version of DeletedAt. No more table renaming.
-      You'll want to migrate your old models to use the new (non-view based) functionality.
-      Follow the instructions at #{gemspec.homepage}.
-    STR
-  end
+#   def self.gemspec
+#     @gemspec ||= eval(`gem spec deleted_at --ruby`).freeze
+#   end
 
-  def self.uninstall(model)
+#   def self.install(model)
+#     logger.warn <<~STR
+#       Great news! You're using the new and improved version of DeletedAt. No more table renaming.
+#       You'll want to migrate your old models to use the new (non-view based) functionality.
+#       Follow the instructions at #{gemspec.homepage}.
+#     STR
+#   end
 
-  end
+#   def self.uninstall(model)
 
-end
+#   end
+
+# end

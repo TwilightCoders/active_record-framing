@@ -12,6 +12,8 @@ end
 Combustion.path = 'spec/support/rails'
 Combustion.initialize! :active_record
 
+require 'active_record/framing/railtie' if defined?(Rails::Railtie)
+
 # ActiveRecord::Base.logger = Logger.new(STDOUT)
 
 RSpec.configure do |config|
