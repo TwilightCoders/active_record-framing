@@ -62,7 +62,6 @@ module DeletedAt
 
     def exec_queries(*args)
       engage_deleted_at do
-        binding.pry
         puts "DELETED_AT SQL: #{arel.to_sql}"
         super
       end
