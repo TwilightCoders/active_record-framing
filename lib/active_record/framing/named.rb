@@ -1,3 +1,5 @@
+require 'delegate'
+
 module ActiveRecord
   # = Active Record \Named \Frames
   module Framing
@@ -181,12 +183,30 @@ module ActiveRecord
         #
         #   Article.published.featured.latest_article
         #   Article.featured.titles
-        def frame(name, body, &block)
+        def frame(frame_name, body, &block)
           unless body.respond_to?(:call)
             raise ArgumentError, "The frame body needs to be callable."
           end
 
-          constant = name.to_s.classify.to_sym
+          constant = frame_name.to_s.classify.to_sym
+          tn = "#{frame_name}/#{self.table_name}"
+
+          the_frame = body.respond_to?(:to_proc) ? body : body.method(:call)
+          cte_relation = relation.merge!(relation.instance_exec(&the_frame) || relation)
+
+          # self.const_set constant, Class.new(DelegateClass(self)) do |klass|
+          delegator = self.name.to_sym
+          self.const_set(constant, self.dup).class_eval do |klass|
+            extend SingleForwardable
+            def_delegator delegator, :type_caster
+            # def_delegator delegator, :table_name
+
+            klass.default_frames = []
+
+            klass.table_name = tn
+
+            klass.current_frame = build_frame(cte_relation, &block)
+          end
 
           if dangerous_class_const?(constant)
             raise ArgumentError, "You tried to define a frame named \"#{constant}\" " \
@@ -194,25 +214,12 @@ module ActiveRecord
               "a class method with the same name."
           end
 
-          registered_frames[constant] = generate_frame_method(name, body, &block)
         end
 
-        def generate_frame_method(name, body, &block)
+        def build_frame(frame, &block)
           extension = Module.new(&block) if block
-          if body.respond_to?(:to_proc)
-            Proc.new do |*args|
-              frame = all
-              frame = frame._exec_frame(*args, &body)
-              frame = frame.extending(extension) if extension
-              frame
-            end
-          else
-            Proc.new do |*args|
-              frame = all
-              frame = frame.framing { body.call(*args) || frame }
-              frame = frame.extending(extension) if extension
-              frame
-            end
+          relation.frame!(Arel::Nodes::As.new(Arel::Table.new(table_name), frame.arel)).tap do |rel|
+            rel.extending!(extension) if extension
           end
         end
 
