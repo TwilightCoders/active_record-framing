@@ -1,13 +1,15 @@
 class User < ::ActiveRecord::Base
-  with_deleted_at
 
   has_many :posts
   has_many :comments
 
-  scope :admins, -> {
-    # select(arel_table[Arel.star], arel_table[:tableoid])#
+  default_scope {
     where(kind: 1)
   }
 
-  default_frame { where(deleted_at: nil) }
+  default_frame {
+    where.not(kind: nil)
+  }
+
+  frame :all, -> {}
 end

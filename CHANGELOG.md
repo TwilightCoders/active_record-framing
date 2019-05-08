@@ -4,7 +4,7 @@
 - Removed use of invasive views in preference of sub-selects
 - Dropped support for Ruby 2.0, 2.1, 2.2
 - Dropped support for Rails 4.1
-- Default `deleted_at` options using `Proc`
+- Default `active_record-framing` options using `Proc`
 
 ## 0.4.0 _(Never Released)_
 - Specs for Rails 4.0-5.1
@@ -14,7 +14,7 @@
 - Add logger for internal use
 - DRYd up init code
 - Removed partially supported features
-- Added DSL in migrations/schema for adding `deleted_at` timestamps to tables
+- Added DSL in migrations/schema for adding `active_record-framing` timestamps to tables
 
 ## 0.3.0 _(May 10, 2017)_
 - Add specs
@@ -47,7 +47,7 @@
 
 ## 0.1.0 _(January 30, 2017)_
 - Renames primary table to `model_name/all`
-- Creates views for each model using `deleted_at`
+- Creates views for each model using `active_record-framing`
   - `model_name/deleted`
   - `model_name/present`
 - Classes created to read from views (`::All`, `::Present`, `::Deleted`)

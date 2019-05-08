@@ -3,33 +3,6 @@ module ActiveRecord
   module Framing
     module Relation
 
-      # Rails 4.2: def initialize(klass, table, values = {})
-      # Rails 5.2: def initialize(klass, table: klass.arel_table, predicate_builder: klass.predicate_builder, values: {})
-      def initialize(*)
-        super
-        # @frames = {}
-      end
-
-      def initialize_copy(other)
-        super
-        # @frames = @frames.dup
-      end
-
-      # def arel_attribute(name) # :nodoc:
-      #   klass.arel_attribute(name, table)
-      # end
-
-      def table
-        # if frame = (klass.current_frame || klass.default_framed)
-        #   if (at = frame.left) === ::Arel::Table
-        #     return at
-        #   end
-        # end
-        #attr_accessor
-        super
-      end
-
-
       def arel_without_frames
         klass.ignore_default_frame
         Thread.currently(:without_frames, true) do
@@ -54,13 +27,12 @@ module ActiveRecord
             #   reflection.klass.type_caster
             # )
             build_frames(ar)
-            frames = frames_values
 
-            frames.each do |k,v|
+            frames_values.each do |k,v|
               puts "#{k} => #{v.to_sql}"
             end
 
-            ar.with(*frames.values) if frames.any?
+            ar.with(*frames_values.values) if frames_values.any?
           end
         end
       end
@@ -130,11 +102,39 @@ module ActiveRecord
         end
       end
 
-      def reframe(*)
+      def reframe(*args) # :nodoc:
+        args.compact!
+        args.flatten!
+        # binding.pry
         self
       end
 
-      def unframe(*)
+      def reframe!(*args) # :nodoc:
+        args.flatten!
+        self.unframe_values += args
+
+        args.each do |frame|
+          case frame
+          when Symbol
+            frame = :left_outer_joins if frame == :left_joins
+            if !VALID_UNSCOPING_VALUES.include?(frame)
+              raise ArgumentError, "Called unframe() with invalid unframing argument ':#{frame}'. Valid arguments are :#{VALID_UNSCOPING_VALUES.to_a.join(", :")}."
+            end
+            set_value(frame, DEFAULT_VALUES[frame])
+          when Hash
+            frame.each do |key, target_value|
+              if key != :where
+                raise ArgumentError, "Hash arguments in .unframe(*args) must have :where as the key."
+              end
+
+              target_values = Array(target_value).map(&:to_s)
+              self.where_clause = where_clause.except(*target_values)
+            end
+          else
+            raise ArgumentError, "Unrecognized framing: #{args.inspect}. Use .unframe(where: :attribute_name) or .unframe(:order), for example."
+          end
+        end
+
         self
       end
 

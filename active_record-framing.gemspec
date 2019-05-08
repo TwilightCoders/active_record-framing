@@ -1,20 +1,15 @@
-require_relative 'lib/deleted_at/version'
+require_relative 'lib/active_record/framing/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "deleted_at"
-  spec.version       = DeletedAt::VERSION
+  spec.name          = "active_record-framing"
+  spec.version       = ActiveRecord::Framing::VERSION
   spec.authors       = ['Dale Stevens']
   spec.email         = ['dale@twilightcoders.net']
 
-  spec.summary       = %q{Soft delete your data, but keep it clean.}
-  spec.description   = %q{Default scopes are bad. Don't delete your data.}
-  spec.homepage      = "https://github.com/TwilightCoders/deleted_at"
+  spec.summary       = %q{Provides larger level scopes (frames) through the use of common table expressions.}
+  spec.description   = %q{Allows for larger level scoping (framing) that affect complicated queries more holistically}
+  spec.homepage      = "https://github.com/TwilightCoders/active_record-framing"
   spec.license       = "MIT"
-
-  spec.post_install_message = <<~STR
-    If you're upgrading from < 0.5.0, please follow the upgrade instructions
-    on #{spec.homepage}.
-  STR
 
   spec.metadata['allowed_push_host'] = 'https://rubygems.org'
 

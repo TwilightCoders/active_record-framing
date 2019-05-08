@@ -1,5 +1,5 @@
 test:
   adapter: postgresql
   encoding: unicode
-  database: deleted_at-test
+  database: active_record-framing-test
   prepared_statements: false
