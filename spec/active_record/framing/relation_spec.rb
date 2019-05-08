@@ -2,109 +2,67 @@ require "spec_helper"
 
 describe ActiveRecord::Framing::Relation do
 
-  it 'also does these sql' do
-
-    User.class_eval do
-
-      frame :all, -> {}
-      frame :deleted, -> { where.not(deleted_at: nil) }
-
-      scope :foo, -> { where(1) }
-      scope :foo, -> { where(2) }
-
+  context 'given a default frame' do
+    it 'handles a simple select' do
+      expect(User.all.to_sql).to match_sql(<<~SQL)
+        WITH
+          "users" AS
+            (SELECT "users".* FROM "users" WHERE \(?"users"."kind" IS NOT NULL\)?)
+        SELECT "users".* FROM "users" WHERE "users"."kind" = 1
+      SQL
     end
 
-    Post.class_eval do
-      default_frame {
-        where(deleted_at: nil)
-      }
+    it 'handles a join on a model with no default frame' do
+      expect(User.joins(:comments).to_sql).to match_sql(<<~SQL)
+        WITH
+          "users" AS
+            (SELECT "users".* FROM "users" WHERE \(?"users"."kind" IS NOT NULL\)?)
+        SELECT "users".* FROM "users"
+          INNER JOIN "comments" ON "comments"."user_id" = "users"."id" WHERE "users"."kind" = 1
+      SQL
     end
 
-    expect(User.joins(:posts).to_sql).to eq(<<~SQL.squish)
-      WITH "users" AS
-        (SELECT "users".* FROM "users" WHERE "users"."deleted_at" IS NULL),
-      "documents" AS
-        (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
-      SELECT "users".* FROM "users"
-        INNER JOIN "documents" ON "documents"."user_id" = "users"."id"
-    SQL
+    it 'handles a join on a model with a default frame' do
+      expect(User.joins(:posts).to_sql).to match_sql(<<~SQL)
+        WITH
+          "users" AS
+            (SELECT "users".* FROM "users" WHERE \(?"users"."kind" IS NOT NULL\)?),
+          "documents" AS
+            (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
+        SELECT "users".* FROM "users"
+          INNER JOIN "documents" ON "documents"."user_id" = "users"."id" AND "documents"."scope" = 1 WHERE "users"."kind" = 1
+      SQL
+    end
+  end
 
-    expect(User::All.joins(:posts).to_sql).to eq(<<~SQL.squish)
-      WITH
-        "all/users" AS
+  context 'given a named frame' do
+    it 'handles a simple select' do
+      expect(User::All.all.to_sql).to eq(<<~SQL.squish)
+        WITH "all/users" AS
+          (SELECT "users".* FROM "users")
+        SELECT "all/users".* FROM "all/users"
+      SQL
+    end
+
+    it 'handles a join on a model with no default frame' do
+      expect(User::All.joins(:comments).to_sql).to eq(<<~SQL.squish)
+        WITH "all/users" AS
+          (SELECT "users".* FROM "users")
+        SELECT "all/users".* FROM "all/users"
+          INNER JOIN "comments" ON "comments"."user_id" = "all/users"."id"
+      SQL
+    end
+
+    it 'handles a join on a model with a default frame' do
+      expect(User::All.joins(:posts).to_sql).to eq(<<~SQL.squish)
+        WITH "all/users" AS
           (SELECT "users".* FROM "users"),
         "documents" AS
           (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
-      SELECT "all/users".* FROM "all/users"
-        INNER JOIN "documents" ON "documents"."user_id" = "all/users"."id"
-    SQL
-
-    binding.pry
-    expect(Post.joins(:user).to_sql).to eq(<<~SQL.squish)
-      WITH
-        "documents" AS
-          (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL),
-        "users" AS
-          (SELECT "users".* FROM "users" WHERE "users"."deleted_at" IS NULL)
-      SELECT "documents".* FROM "documents"
-        INNER JOIN "users" ON "users"."id" = "documents"."user_id"
-    SQL
-
-    # reframe no hash = apply default frame
-    expect(Post.joins(:user).reframe(:user).to_sql).to eq(<<~SQL.squish)
-      WITH "users" AS
-        (SELECT "users".* FROM "users" WHERE deleted_at IS NULL)
-      SELECT * FROM "documents"
-        INNER JOIN "users" ON "users".id = "documents"."user_id"
-    SQL
-
-    # reframe hash symbol value = lookup frame by value and apply
-    expect(Post.joins(:user).reframe(user: :deleted).to_sql).to eq(<<~SQL.squish)
-      WITH "deleted/users" AS
-        (SELECT "users".* FROM "users" WHERE deleted_at IS NOT NULL)
-      SELECT * FROM "documents"
-        INNER JOIN "deleted/users" ON "deleted/users".id = "documents"."user_id"
-    SQL
-
-    # reframe hash frame/relation value = lookup frame by value and apply
-    expect(Post.joins(:user).reframe(user: User::Deleted).to_sql).to eq(<<~SQL)
-      WITH "deleted/users" AS
-        (SELECT "users".* FROM "users" WHERE deleted_at IS NOT NULL)
-      SELECT * FROM "documents"
-        INNER JOIN "deleted/users" ON "deleted/users".id = "documents"."user_id"
-    SQL
-
-    # debatable???
-    # reframe hash with nil value = apply default frame
-    expect(Post.joins(:user).reframe(user: nil).to_sql).to eq(<<~SQL)
-      WITH "users" AS
-        (SELECT "users".* FROM "users" WHERE deleted_at IS NULL)
-      SELECT * FROM "documents"
-        INNER JOIN "users" ON "users".id = "documents"."user_id"
-    SQL
-
-    expect(Post.joins(:user).unframe(:user).to_sql).to eq(<<~SQL)
-      SELECT * FROM "documents"
-        INNER JOIN "users" ON "users".id = "documents"."user_id"
-    SQL
-
-    expect(User::All.to_sql).to eq(<<~SQL)
-      WITH "all/users" AS
-        (SELECT "users".* FROM "users")
-      SELECT * FROM "all/users"
-    SQL
-
-    expect(User::Deleted.to_sql).to eq(<<~SQL)
-      WITH "deleted/users" AS
-        (SELECT "users".* FROM "users" WHERE deleted_at IS NOT NULL)
-      SELECT * FROM "deleted/users"
-    SQL
-
-    expect(User.to_sql).to eq(<<~SQL)
-      WITH "users" AS
-        (SELECT "users".* FROM "users" WHERE deleted_at IS NULL)
-      SELECT * FROM "users"
-    SQL
-
+        SELECT "all/users".* FROM "all/users"
+          INNER JOIN "documents" ON "documents"."user_id" = "all/users"."id" AND "documents"."scope" = 1
+      SQL
+    end
   end
+
 end

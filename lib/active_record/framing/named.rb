@@ -189,7 +189,7 @@ module ActiveRecord
           end
 
           constant = frame_name.to_s.classify.to_sym
-          tn = "#{frame_name}/#{self.table_name}"
+          arel_tn = "#{frame_name}/#{self.table_name}"
 
           the_frame = body.respond_to?(:to_proc) ? body : body.method(:call)
           cte_relation = relation.merge!(relation.instance_exec(&the_frame) || relation)
@@ -199,11 +199,13 @@ module ActiveRecord
           self.const_set(constant, self.dup).class_eval do |klass|
             extend SingleForwardable
             def_delegator delegator, :type_caster
-            # def_delegator delegator, :table_name
+            def_delegator delegator, :table_name
 
             klass.default_frames = []
 
-            klass.table_name = tn
+            @arel_table = klass.arel_table.dup.tap do |at|
+              at.name = arel_tn
+            end
 
             klass.current_frame = build_frame(cte_relation, &block)
           end
@@ -218,7 +220,7 @@ module ActiveRecord
 
         def build_frame(frame, &block)
           extension = Module.new(&block) if block
-          relation.frame!(Arel::Nodes::As.new(Arel::Table.new(table_name), frame.arel)).tap do |rel|
+          relation.frame!(Arel::Nodes::As.new(arel_table, frame.arel)).tap do |rel|
             rel.extending!(extension) if extension
           end
         end

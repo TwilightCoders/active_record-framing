@@ -20,32 +20,6 @@ module ActiveRecord
       def current_frame=(frame)
         FrameRegistry.set_value_for(:current_frame, self, frame)
       end
-
-      def with_deleted_at
-      end
-
-      # Collects attributes from frames that should be applied when creating
-      # an AR instance for the particular class this is called on.
-      def frame_attributes
-        all.frame_for_create
-      end
-
-      # Are there attributes associated with this frame?
-      def frame_attributes?
-        current_frame
-      end
-    end
-
-    def populate_with_current_frame_attributes # :nodoc:
-      return unless self.class.frame_attributes?
-
-      attributes = self.class.frame_attributes
-      _assign_attributes(attributes) if attributes.any?
-    end
-
-    def initialize_internals_callback # :nodoc:
-      super
-      populate_with_current_frame_attributes
     end
 
     # This class stores the +:current_frame+ and +:ignore_default_frame+ values
