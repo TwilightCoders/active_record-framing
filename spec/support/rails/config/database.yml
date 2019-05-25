@@ -1,6 +1,6 @@
 test:
-  adapter: postgresql
+  adapter: <%= ENV.fetch("DB_ADAPTER") %>
   host: localhost
-  encoding: unicode
+  # encoding: unicode
   database: active_record-framing-test
-  prepared_statements: false
+  # prepared_statements: false
