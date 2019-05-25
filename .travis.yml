@@ -7,6 +7,7 @@ cache: bundler
 before_install:
   - gem update --system
   - gem install bundler
+  - bundle config github.https true
 
 before_script:
   - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
@@ -29,11 +30,13 @@ rvm:
   - 2.3
 
 gemfile:
-  - gemfiles/activerecord-edge.Gemfile
-  - gemfiles/activerecord-5.2.Gemfile
-  - gemfiles/activerecord-5.1.Gemfile
-  - gemfiles/activerecord-5.0.Gemfile
   - gemfiles/activerecord-4.2.Gemfile
+  - gemfiles/activerecord-5.0.Gemfile
+  - gemfiles/activerecord-5.1.Gemfile
+  - gemfiles/activerecord-5.2.Gemfile
+
+  - gemfiles/activerecord-6.0.Gemfile
+  - gemfiles/activerecord-edge.Gemfile
 
 matrix:
   allow_failures:
@@ -42,3 +45,15 @@ matrix:
   exclude:
   - rvm: 2.6
     gemfile: gemfiles/activerecord-4.2.Gemfile
+
+  - rvm: 2.4
+    gemfile: gemfiles/activerecord-6.0.Gemfile
+
+  - rvm: 2.4
+    gemfile: gemfiles/activerecord-edge.Gemfile
+
+  - rvm: 2.3
+    gemfile: gemfiles/activerecord-6.0.Gemfile
+
+  - rvm: 2.3
+    gemfile: gemfiles/activerecord-edge.Gemfile

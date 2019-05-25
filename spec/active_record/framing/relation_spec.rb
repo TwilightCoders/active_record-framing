@@ -49,6 +49,20 @@ describe ActiveRecord::Framing::Relation do
     end
   end
 
+  context 'deep nested join syntax' do
+    it 'properly scopes' do
+      binding.pry
+      expect(User::All.joins(posts: { comments: :votes }).to_sql).to match_sql(<<~SQL)
+        WITH "all/users" AS
+          (SELECT "users".* FROM "users"),
+        "documents" AS
+          (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
+        SELECT "all/users".* FROM "all/users"
+          INNER JOIN "documents" ON "documents"."user_id" = "all/users"."id" AND "documents"."scope" = 1
+      SQL
+    end
+  end
+
   context 'given a named frame' do
     it 'handles a simple select' do
       expect(User::All.all.to_sql).to match_sql(<<~SQL)

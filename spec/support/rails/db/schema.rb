@@ -24,4 +24,11 @@ ActiveRecord::Schema.define do
     t.timestamps null: false
   end
 
+  create_table :votes, force: true do |t|
+    t.integer :user_id
+    t.integer :comment_id
+    t.boolean :revoked, default: false
+    t.timestamps null: false
+  end
+
 end
