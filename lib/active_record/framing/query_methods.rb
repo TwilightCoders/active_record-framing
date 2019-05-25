@@ -4,7 +4,9 @@ module ActiveRecord
   module Framing
     module QueryMethods
 
-      if ::ActiveRecord.version >= Gem::Version.new("5.1") # 5.1+
+      if ::ActiveRecord.version >= Gem::Version.new("6.0") # 6.0+
+        require 'active_record/framing/compat/active_record_6_0'
+      elsif ::ActiveRecord.version >= Gem::Version.new("5.1") # 5.1+
         require 'active_record/framing/compat/active_record_5_1'
       elsif ::ActiveRecord.version >= Gem::Version.new("5.0") # 5.0+
         require 'active_record/framing/compat/active_record_5_0'
