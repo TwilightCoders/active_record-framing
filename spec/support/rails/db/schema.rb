@@ -11,7 +11,7 @@ ActiveRecord::Schema.define do
   create_table :documents, force: true do |t|
     t.integer :user_id
     t.string :title
-    t.integer :version,    default: [1, 0], null: false, array: true
+    t.integer :version,    default: 1, null: false
     t.integer :scope
     t.timestamps null: false
     t.timestamp :deleted_at

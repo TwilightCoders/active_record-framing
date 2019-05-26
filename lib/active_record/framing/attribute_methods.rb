@@ -3,7 +3,7 @@ module ActiveRecord
     module AttributeMethods
       extend ActiveSupport::Concern
 
-      BLACKLISTED_CLASS_CONSTS = %w(unframed)
+      BLACKLISTED_CLASS_CONSTS = %w(unframed framed)
 
       module ClassMethods
         # A class const is 'dangerous' if it is already defined by Active Record, but

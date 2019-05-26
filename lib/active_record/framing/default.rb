@@ -57,6 +57,17 @@ module ActiveRecord
           self.ignore_default_frame = false
         end
 
+        def arel_table
+          # binding.pry
+          if !ignore_default_frame? && default_frames.any?
+            @default_arel_table ||= super.dup.tap do |at|
+              at.name = "framed/#{at.name}"
+            end
+          else
+            super
+          end
+        end
+
       private
 
         def ignore_default_frame=(ignore)
