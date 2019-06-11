@@ -32,7 +32,7 @@ module ActiveRecord
 
       # def default_framed(frame = relation) # :nodoc:
       def default_framed(frame = nil) # :nodoc:
-        !ignore_default_frame? && build_default_frame(frame) || frame
+        !ignore_default_frame? && !ActiveRecord::Framing.disabled? && build_default_frame(frame) || frame
       end
 
       # Adds a class method for retrieving and querying objects.

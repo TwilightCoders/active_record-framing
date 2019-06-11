@@ -18,6 +18,17 @@ module ActiveRecord
       subclass.extend ClassMethods
     end
 
+    def self.disable
+      @disabled = true
+      yield if block_given?
+    ensure
+      @disabled = false
+    end
+
+    def self.disabled?
+      @disabled == true
+    end
+
     module ClassMethods # :nodoc:
       def current_frame
         FrameRegistry.value_for(:current_frame, self)
