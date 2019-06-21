@@ -146,9 +146,6 @@ module ActiveRecord
 
         arel_tn = "#{frame_name}/#{self.table_name}"
 
-        the_frame = body.respond_to?(:to_proc) ? body : body.method(:call)
-        cte_relation = relation.merge!(relation.instance_exec(&the_frame) || relation)
-
         new_class = self.const_set constant, (Class.new(self) do |klass|
           klass.abstract_class = true
           klass.table_name = superclass.table_name
@@ -165,7 +162,7 @@ module ActiveRecord
 
         end)
 
-        new_class.current_frame = new_class.build_frame(cte_relation, &block)
+        new_class.current_frame = new_class.build_frame([body], new_class.arel_table, relation, &block)
 
         if dangerous_class_const?(constant)
           raise ArgumentError, "You tried to define a frame named \"#{constant}\" " \
@@ -173,13 +170,6 @@ module ActiveRecord
             "a class method with the same name."
         end
 
-      end
-
-      def build_frame(frame, &block)
-        extension = Module.new(&block) if block
-        relation.frame!(Arel::Nodes::As.new(arel_table, frame.arel)).tap do |rel|
-          rel.extending!(extension) if extension
-        end
       end
 
       private

@@ -10,6 +10,9 @@ module ActiveRecord
     def self.prepended(subclass)
       subclass.singleton_class.class_eval do
         alias_method :unframed_all, :all
+
+        # Subclasses need to be able to call its parent's
+        protected :relation
       end
 
       subclass.include Default
