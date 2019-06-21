@@ -57,6 +57,22 @@ module ActiveRecord
           self.ignore_default_frame = false
         end
 
+      protected
+
+        def build_frame(frames, arel_table, base_rel = nil, &block)
+          cte_relation = frames.inject(base_rel.clone) do |collection, frame|
+            frame = frame.respond_to?(:to_proc) ? frame : frame.method(:call)
+            # Exec the frame, or grab the default_frame (by calling relation)
+            frame_relation = base_rel.instance_exec(&frame)
+            collection.merge!(frame_relation || base_rel)
+          end
+
+          relation.frame!(Arel::Nodes::As.new(arel_table, cte_relation.arel)).tap do |rel|
+            extension = Module.new(&block) if block_given?
+            rel.extending!(extension) if extension
+          end
+        end
+
       private
 
         def ignore_default_frame=(ignore)
@@ -135,14 +151,7 @@ module ActiveRecord
           elsif default_frames.any?
             ignore_default_frame do
               cte_table = Arel::Table.new(table_name)
-
-              cte_relation = default_frames.inject(relation) do |default_frame, frame|
-                frame = frame.respond_to?(:to_proc) ? frame : frame.method(:call)
-                default_frame.merge!(relation.instance_exec(&frame))
-              end
-
-              base_rel ||= relation
-              base_rel.frame!(Arel::Nodes::As.new(cte_table, cte_relation.arel))# if cte_relation
+              build_frame(default_frames, cte_table, base_rel || relation)
             end
           end
         end
