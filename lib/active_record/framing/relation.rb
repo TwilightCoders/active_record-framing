@@ -30,7 +30,7 @@ module ActiveRecord
       # NOTE: In Rails 5.2 (at least) we could use the InnerJoin.left.type_caster
       def build_frames(manager)
         # NOTE: We cannot early exclude associations because some associations are different from their table names
-        # TODO: cache known associations?
+        # TODO: cache known associations, (renable warning)
         assocs = klass.reflect_on_all_associations.inject(Hash.new) do |assocs, assoc|
           begin
             assocs[assoc.table_name] = assoc
@@ -39,6 +39,7 @@ module ActiveRecord
             #   ActiveRecord::Framing was trying to inspect the association #{assoc.name}
             #     on the #{assoc.active_record.name} model but seems there is an issue
             #     locating the model backing it.
+            #     Error: #{e.message}
             # WARN
           end
           assocs
