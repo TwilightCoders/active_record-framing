@@ -31,17 +31,17 @@ module ActiveRecord
         value = value.all if (value.is_a?(Class) && value < ::ActiveRecord::Base)
 
         cte = \
-        case value
-        when ::ActiveRecord::Relation
-          # {value.table.name => value.frames_values}
-          value.frames_values
-        when Arel::Nodes::As
-          {value.left.name => value}
-        when String
-          {arel_table.name => value}
-        else
-          {}
-        end
+          case value
+          when ::ActiveRecord::Relation
+            # {value.table.name => value.frames_values}
+            value.frames_values
+          when Arel::Nodes::As
+            {value.left.name => value}
+          when String
+            {arel_table.name => value}
+          else
+            {}
+          end
 
         self.frames_values = self.frames_values.merge(cte)
 

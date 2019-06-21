@@ -46,7 +46,7 @@ module ActiveRecord
 
         manager.join_sources.each do |join_source|
           next unless join_source&.left&.respond_to?(:name)
-          if assoc = assocs[join_source.left.name]
+          if (assoc = assocs[join_source.left.name])
             source = reframe_values.fetch(assoc.name) { assoc.klass }
 
             join_source.left.name = source.arel_table.name
