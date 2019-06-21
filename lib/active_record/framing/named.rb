@@ -154,15 +154,19 @@ module ActiveRecord
             superclass.send(:discriminate_class_for_record, record)
           end
 
-          klass.default_frames = []
+          klass.default_frames = [body]
+
+          @current_frame_extension = block
+
+          def klass.current_frame
+            build_frame(default_frames, arel_table, superclass.relation, &@current_frame_extension)
+          end
 
           @arel_table = superclass.arel_table.dup.tap do |at|
             at.name = arel_tn
           end
 
         end)
-
-        new_class.current_frame = new_class.build_frame([body], new_class.arel_table, relation, &block)
 
         if dangerous_class_const?(constant)
           raise ArgumentError, "You tried to define a frame named \"#{constant}\" " \
