@@ -2,6 +2,7 @@ ActiveRecord::Schema.define do
   self.verbose = false
 
   create_table :users, schema: :public, force: true do |t|
+    t.string :type
     t.string :name
     t.string :email, index: :btree
     t.integer :kind, default: 0

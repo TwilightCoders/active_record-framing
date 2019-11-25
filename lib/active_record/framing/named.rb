@@ -18,15 +18,21 @@ module ActiveRecord
       # You can define a frame that applies to all finders using
       # {default_frame}[rdoc-ref:Framing::Default::ClassMethods#default_frame].
       def all
-        if (current_frame = self.current_frame)
-          if self == current_frame.klass
-            current_frame.clone
-          else
-            unframed_all.merge!(current_frame)
-          end
+        # if (current_frame = self.current_frame)
+        #
+        #   if self == current_frame.klass
+        #     current_frame.clone
+        #   else
+        #     unframed_all.frame!(current_frame)
+        #   end
+        # else
+        #   # default_framed.frame!(unframed_all)
+        #   unframed_all.frame!(default_framed)
+        # end
+        if (original_arel_table == self.current_frame)
+          unframed_all
         else
-          # default_framed.merge!(unframed_all)
-          unframed_all.merge!(default_framed)
+          unframed_all.frame!(default_framed)
         end
       end
 
@@ -35,6 +41,10 @@ module ActiveRecord
         !ignore_default_frame? && !ActiveRecord::Framing.disabled? && build_default_frame(frame) || frame
       end
 
+
+      def frames
+        @frames ||= {}
+      end
       # Adds a class method for retrieving and querying objects.
       # The method is intended to return an ActiveRecord::Relation
       # object, which is composable with other frames.
@@ -136,50 +146,61 @@ module ActiveRecord
       #
       #   Article.published.featured.latest_article
       #   Article.featured.titles
-      def frame(frame_name, body, &block)
-        unless body.respond_to?(:call)
-          raise ArgumentError, "The frame body needs to be callable."
-        end
-
+      def frame(frame_name, body = nil, &block)
         constant = frame_name.to_s.classify.to_sym
-        valid_frame_name?(constant)
 
-        arel_tn = "#{frame_name}/#{self.table_name}"
-
-        new_class = self.const_set constant, (Class.new(self) do |klass|
-          klass.abstract_class = true
-          klass.table_name = superclass.table_name
-
-          def klass.discriminate_class_for_record(record)
-            superclass.send(:discriminate_class_for_record, record)
-          end
-
-          klass.default_frames = [body]
-
-          @current_frame_extension = block
-
-          def klass.current_frame
-            build_frame(default_frames, arel_table, superclass.relation, &@current_frame_extension)
-          end
-
-          @arel_table = superclass.arel_table.dup.tap do |at|
-            at.name = arel_tn
-          end
-
-        end)
-
-        if dangerous_class_const?(constant)
+        if !body.respond_to?(:call)
+          # raise ArgumentError, "The frame body needs to be callable."
+          warn "You've assigned a frame (#{frame_name}) with no callable block." unless
+            AttributeMethods::BLACKLISTED_CLASS_CONSTS.include?(frame_name)
+        elsif dangerous_class_const?(constant)
           raise ArgumentError, "You tried to define a frame named \"#{constant}\" " \
             "on the model \"#{self.constant}\", but Active Record already defined " \
             "a class method with the same name."
         end
+
+        valid_frame_name?(constant)
+
+        arel_tn = "#{frame_name}/#{self.table_name}"
+
+        at = Arel::Table.new(arel_tn, arel_table.engine)
+
+        frames[constant] = Proc.new do
+          build_frame([body].compact, at, relation, &block)
+        end
+
+        # new_class = self.const_set constant, (Class.new(self) do |klass|
+        #   klass.abstract_class = true
+        #   klass.table_name = superclass.table_name
+
+        #   def klass.discriminate_class_for_record(record)
+        #     superclass.send(:discriminate_class_for_record, record)
+        #   end
+
+        #   if body
+        #     @current_frame_extension = block
+
+        #     klass.default_frames = [body]
+        #     def klass.current_frame
+        #       build_frame(default_frames, arel_table, superclass.relation, &@current_frame_extension)
+        #     end
+
+        #     @arel_table = superclass.arel_table.dup.tap do |at|
+        #       at.name = arel_tn
+        #     end
+        #   else
+        #     klass.default_frames = []
+        #   end
+
+        # end)
 
       end
 
       private
 
         def valid_frame_name?(name)
-          if const_defined?(name) && logger
+          # if const_defined?(name) && logger
+          if frames.key?(name) && logger
             logger.warn "Creating frame :#{name}. " \
               "Overwriting existing const #{self.name}::#{name}."
           end

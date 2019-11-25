@@ -17,8 +17,10 @@ class Post < ::ActiveRecord::Base
   # Tests for the subclasses keeping in sync with the
   # parent classes (named.rb)
   belongs_to :user
+
   has_many :comments
   has_many :commenters, through: :comments, source: :user
+  has_many :admin_commenters, through: :comments, source: :admin
 
   # Keep this because it tests whether AR:F too eagerly inspects
   # all of a class's associations
