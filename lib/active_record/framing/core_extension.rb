@@ -40,6 +40,42 @@ module ActiveRecord
       def current_frame=(frame)
         FrameRegistry.set_value_for(:current_frame, self, frame)
       end
+
+      def arel_table
+        if (current_frame = self.current_frame)
+          # puts "arel_table: #{current_frame.name.cyan}"
+          current_frame
+        else
+          super.tap do |at|
+            # puts "arel_table #{at.name.red}"
+          end
+        end
+      end
+
+      def original_arel_table
+        @arel_table
+      end
+
+      def table_name
+        if (current_frame = self.current_frame)
+          # puts "table_name: #{current_frame.name.cyan}"
+          arel_table.name
+        else
+          super.tap do |tn|
+            # puts "table_name: #{tn.red}"
+          end
+        end
+      end
+
+      def const_missing(const_name)
+        case const_name
+        when *frames.keys
+          columns
+          frames[const_name].call
+        else
+          super
+        end
+      end
     end
 
     # This class stores the +:current_frame+ and +:ignore_default_frame+ values

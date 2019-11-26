@@ -3,6 +3,7 @@ ENV['RAILS_ENV'] = 'test'
 require 'database_cleaner'
 require 'combustion'
 require 'pry'
+require 'colorize'
 
 require 'simplecov'
 SimpleCov.start do
@@ -14,7 +15,12 @@ Combustion.initialize! :active_record
 
 require 'active_record/framing/railtie' if defined?(Rails::Railtie)
 
-# ActiveRecord::Base.logger = Logger.new(STDOUT)
+def log_sql
+  orig, ActiveRecord::Base.logger = ActiveRecord::Base.logger, Logger.new(STDOUT)
+  yield if block_given?
+ensure
+  ActiveRecord::Base.logger = orig
+end
 
 RSpec.configure do |config|
   config.order = 'random'
@@ -43,6 +49,7 @@ RSpec::Matchers.define :eq_sql do |expected_sql|
 end
 
 RSpec::Matchers.define :match_sql do |expected_sql|
+  #
   expected_sql.squish!.gsub!(/([\.\*\(\)\/])/, '\\\\\1')
 
   match do |actual_sql|

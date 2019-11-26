@@ -9,6 +9,14 @@ describe ActiveRecord::Framing do
     end
   end
 
+  context 'unframing' do
+    it 'does not apply frames' do
+      User.create(kind: 1)
+      user = User.unframed.joins(:comments).where(kind: 1).first
+      expect(user.kind).to be_nil
+    end
+  end
+
   context 'when reframing' do
     it 'should return the properly framed and scoped records' do
       user = User.create(name: 'bob', kind: 1)

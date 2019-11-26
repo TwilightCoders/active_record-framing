@@ -57,6 +57,12 @@ module ActiveRecord
           self.ignore_default_frame = false
         end
 
+        def default_arel_table
+          @default_arel_table ||= arel_table.dup.tap do |at|
+            at.name = sovereign_table_name
+          end
+        end
+
       protected
 
         def build_frame(frames, arel_table, base_rel = nil, &block)
@@ -68,6 +74,8 @@ module ActiveRecord
           end
 
           relation.frame!(Arel::Nodes::As.new(arel_table, cte_relation.arel)).tap do |rel|
+            rel.table = arel_table
+            # rel.instance_variable_set(:@table, arel_table)
             extension = Module.new(&block) if block_given?
             rel.extending!(extension) if extension
           end
@@ -120,7 +128,7 @@ module ActiveRecord
         #       # Should return a frame, you can call 'super' here etc.
         #     end
         #   end
-        def default_frame(frame = nil) # :doc:
+        def default_frame(frame_name = nil, frame: nil) # :doc:
           frame = Proc.new if block_given?
 
           if frame.is_a?(Relation) || !frame.respond_to?(:call)
@@ -131,7 +139,29 @@ module ActiveRecord
               "self.default_frame.)"
           end
 
+          # TODO: Include default_scopes?
+          frame(:unframed)
+
+          # default_arel_table.tap do |at|
+          #   at.name = frame_name
+          # end if frame_name
+
           self.default_frames += [frame]
+        end
+
+        def sovereign_table_name
+          #
+          if superclass < ::ActiveRecord::Base && table_name == superclass.table_name
+            begin
+              orig, superclass.abstract_class = superclass.abstract_class, true
+              # return compute_table_name
+              return table_name
+            ensure
+              superclass.abstract_class = orig
+            end
+          end
+          # compute_table_name
+          table_name
         end
 
         def build_default_frame(base_rel = nil)
@@ -150,7 +180,8 @@ module ActiveRecord
             end
           elsif default_frames.any?
             ignore_default_frame do
-              cte_table = Arel::Table.new(table_name)
+              # cte_table = Arel::Table.new(table_name)
+              cte_table = default_arel_table
               build_frame(default_frames, cte_table, base_rel || relation)
             end
           end

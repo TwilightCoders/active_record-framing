@@ -1,0 +1,38 @@
+module ActiveRecord
+  module Framing
+    class ModelProxy < SimpleDelegator
+
+      def initialize(klass, table)
+        @table = table
+        super(klass)
+      end
+
+      def unscoped
+        __getobj__.unscoped.tap do |rel|
+          rel.instance_variable_set(:@table, @table)
+        end
+      end
+
+      def table=(value)
+        @table = value
+      end
+
+      def table_name
+        @table.name
+      end
+
+      def send(*args)
+        __getobj__.send(*args)
+      end
+
+      def arel_table
+        @table
+      end
+
+      # Might not need this
+      def is_a?(obj)
+        __getobj__.is_a?(obj)
+      end
+    end
+  end
+end
