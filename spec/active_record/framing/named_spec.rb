@@ -16,7 +16,6 @@ describe ActiveRecord::Framing::Named do
   end
 
   it 'handles basic eager_loads' do
-    binding.pry
     sql = Post::Deleted.eager_load(:user, :comments).to_sql
     expect(sql).to match_sql(<<~SQL)
       WITH

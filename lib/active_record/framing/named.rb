@@ -18,29 +18,20 @@ module ActiveRecord
       # You can define a frame that applies to all finders using
       # {default_frame}[rdoc-ref:Framing::Default::ClassMethods#default_frame].
       def all
-        # if (current_frame = self.current_frame)
-        #
-        #   if self == current_frame.klass
-        #     current_frame.clone
-        #   else
-        #     unframed_all.frame!(current_frame)
-        #   end
-        # else
-        #   # default_framed.frame!(unframed_all)
-        #   unframed_all.frame!(default_framed)
-        # end
-        if (original_arel_table == self.current_frame)
-          unframed_all
-        else
-          unframed_all.frame!(default_framed)
-        end
+        unframed_all.merge(current_frame || default_framed)
       end
 
       # def default_framed(frame = relation) # :nodoc:
-      def default_framed(frame = relation) # :nodoc:
-        !ignore_default_frame? && !ActiveRecord::Framing.disabled? && build_default_frame(frame) || frame
+      # def default_framed(frame = relation) # :nodoc:
+      #   !ignore_default_frame? && !ActiveRecord::Framing.disabled? && build_default_frame(frame) || frame
+      # end
+      def default_framed
+        if !ignore_default_frame? && !ActiveRecord::Framing.disabled?
+          relation.frame(build_default_frame(relation))
+        else
+          relation
+        end
       end
-
 
       def frames
         @frames ||= {}

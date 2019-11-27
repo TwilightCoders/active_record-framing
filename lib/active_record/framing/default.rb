@@ -49,7 +49,7 @@ module ActiveRecord
         # The ignore_default_frame flag is used to prevent an infinite recursion
         # situation where a default frame references a frame which has a default
         # frame which references a frame...
-        def ignore_default_frame
+        def evaluate_default_frame
           return if ignore_default_frame?
           self.ignore_default_frame = true
           yield
@@ -61,6 +61,7 @@ module ActiveRecord
           @default_arel_table ||= arel_table.dup.tap do |at|
             at.name = sovereign_table_name
           end
+          # @default_arel_table ||= arel_table.alias(sovereign_table_name)
         end
 
       protected
@@ -75,7 +76,6 @@ module ActiveRecord
 
           relation.frame!(Arel::Nodes::As.new(arel_table, cte_relation.arel)).tap do |rel|
             rel.table = arel_table
-            # rel.instance_variable_set(:@table, arel_table)
             extension = Module.new(&block) if block_given?
             rel.extending!(extension) if extension
           end
@@ -140,7 +140,7 @@ module ActiveRecord
           end
 
           # TODO: Include default_scopes?
-          frame(:unframed)
+          # frame(:unframed)
 
           # default_arel_table.tap do |at|
           #   at.name = frame_name
@@ -150,7 +150,7 @@ module ActiveRecord
         end
 
         def sovereign_table_name
-          #
+          # TODO: Use compute_table_name to disambiguate between users and admins
           if superclass < ::ActiveRecord::Base && table_name == superclass.table_name
             begin
               orig, superclass.abstract_class = superclass.abstract_class, true
@@ -173,13 +173,13 @@ module ActiveRecord
 
           if default_frame_override
             # The user has defined their own default frame method, so call that
-            ignore_default_frame do
+            evaluate_default_frame do
               if (frame = default_frame)
                 (base_rel ||= relation).frame!(frame)
               end
             end
           elsif default_frames.any?
-            ignore_default_frame do
+            evaluate_default_frame do
               # cte_table = Arel::Table.new(table_name)
               cte_table = default_arel_table
               build_frame(default_frames, cte_table, base_rel || relation)

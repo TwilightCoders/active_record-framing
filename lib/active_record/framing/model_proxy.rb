@@ -21,6 +21,14 @@ module ActiveRecord
         @table.name
       end
 
+      def reframe_values
+        @reframe_values ||= {}
+      end
+
+      def reframe_values=(value)
+        @reframe_values = value
+      end
+
       def send(*args)
         __getobj__.send(*args)
       end
