@@ -11,14 +11,6 @@ module ActiveRecord
         end
       end
 
-      # def initialize_copy(other)
-      #   # binding.pry if other.table != table
-      #   # binding.pry if other.klass != klass
-      #   super.tap do |something|
-      #     # puts "uhoh: #{something.table_name} vs #{other.table_name}" if something.table_name != other.table_name
-      #   end
-      # end
-
       def build_arel(*)
         @klass.reframe_values = reframe_values
         super.tap do |ar|
@@ -43,39 +35,6 @@ module ActiveRecord
         @klass.table = value
       end
 
-      def table_name
-        arel_table.name
-      end
-
-      def arel_table
-        # puts "Calling #arel_table for #{engine.name}"
-        # if self == unframed_all || ignore_default_frame?
-        #   puts "Unframed"
-        #   super
-        # else
-        #   puts "calling #table"
-        #   table
-        # end
-        # ignore_default_frame? ? super : table
-        @table
-      end
-
-      # Oh boy. This is a doozy. Buckle up:
-      # ActiveRecord, in it's `build_select` method, is inconsistant in how
-      # it uses it's own internal API. It calls both klass and @class at different
-      # points. Furthermore, it does not rely on it's own default delegation for
-      # things like `arel_table`, which we're trying to override. Given that
-      # (in this circumstance) @klass is only used to access `arel_table`, we're
-      # gonna be "sneaky" and just temporarily replace @klass with self, to act as
-      # the responder for `arel_table`.
-      # NOTE: May not need this anymore with proxy class
-      # def build_select(*)
-      #   old, @klass = @klass, self
-      #   super
-      # ensure
-      #   @klass = old
-      # end
-
       def aggregate_column(column_name)
         framing { super }
       end
@@ -84,16 +43,8 @@ module ActiveRecord
         framing { super }
       end
 
-      # def table
-      #   if ignore_default_frame?
-      #     @better_table ||= Arel::Table.new(super.name, klass)
-      #   else
-      #     klass.default_arel_table
-      #   end
-      # end
-
       # This is all very unfortunate (rails 4.2):
-      # ActiveRecord, in it's infinite wisdom, has decided
+      # ActiveRecord—in it's infinite wisdom—has decided
       # to create JoinDependency objects with arel_tables using a
       # generic engine (ActiveRecord::Base) as opposed to that of
       # the driving class. For example:
@@ -138,42 +89,7 @@ module ActiveRecord
             original = frames_values.delete(value.left.engine.table_name)
             frame!(value)
           end
-          # binding.pry
-          # assoc = assocs[assoc_name]
-          # # frame!({relation.table_name => relation.frames_values.values.first})
-          # frame!(relation.frames_values.values)
         end
-
-        # manager.join_sources.each do |join_source|
-        #   next unless join_source&.left&.respond_to?(:name)
-        #   table = join_source.left
-
-        #   if (join_class = derive_engine(table, assocs))
-        #     rel = join_class.all.tap do |r|
-        #       r.table = join_class.arel_table
-        #     end
-
-        #     binding.pry
-        #     if (frame_value = rel.frames_values.values.first)
-        #       frame_value.left = table
-        #       # rel.frames_values.values.each do |value|
-
-
-        #       # source = reframe_values.fetch(join_class.table_name) { join_class.all }.klass
-
-        #       # frame!(source)
-        #       # case table
-        #       # when Arel::Table
-        #       #   table.name = source.table.name
-        #       # when Arel::Nodes::TableAlias
-        #       #   table.right = source.table.name
-        #       # end
-        #       frame!(frame_value)
-        #     end
-        #   else
-
-        #   end
-        # end
       end
 
       def derive_engine(table, associations)

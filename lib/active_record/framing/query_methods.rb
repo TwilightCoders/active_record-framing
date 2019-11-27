@@ -14,15 +14,6 @@ module ActiveRecord
         raise NotImplementedError, "ActiveRecord::Framing does not support Rails #{::ActiveRecord.version}"
       end
 
-      # def from!(value, subquery_name = nil) # :nodoc:
-      #   super.tap do |rel|
-      #     if value.is_a?(::ActiveRecord::Relation) && value.frames_values.any?
-      #       self.frames_values = self.frames_values.merge(value.frames_values)
-      #       value.frames_values.clear
-      #     end
-      #   end
-      # end
-
       def frame(value)
         spawn.frame!(value)
       end

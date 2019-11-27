@@ -21,13 +21,9 @@ module ActiveRecord
         unframed_all.merge(current_frame || default_framed)
       end
 
-      # def default_framed(frame = relation) # :nodoc:
-      # def default_framed(frame = relation) # :nodoc:
-      #   !ignore_default_frame? && !ActiveRecord::Framing.disabled? && build_default_frame(frame) || frame
-      # end
       def default_framed
         if !ignore_default_frame? && !ActiveRecord::Framing.disabled?
-          relation.frame(build_default_frame(relation))
+          relation.frame(build_default_frame)
         else
           relation
         end
@@ -159,32 +155,6 @@ module ActiveRecord
         frames[constant] = Proc.new do
           build_frame([body].compact, at, relation, &block)
         end
-
-        # new_class = self.const_set constant, (Class.new(self) do |klass|
-        #   klass.abstract_class = true
-        #   klass.table_name = superclass.table_name
-
-        #   def klass.discriminate_class_for_record(record)
-        #     superclass.send(:discriminate_class_for_record, record)
-        #   end
-
-        #   if body
-        #     @current_frame_extension = block
-
-        #     klass.default_frames = [body]
-        #     def klass.current_frame
-        #       build_frame(default_frames, arel_table, superclass.relation, &@current_frame_extension)
-        #     end
-
-        #     @arel_table = superclass.arel_table.dup.tap do |at|
-        #       at.name = arel_tn
-        #     end
-        #   else
-        #     klass.default_frames = []
-        #   end
-
-        # end)
-
       end
 
       private
