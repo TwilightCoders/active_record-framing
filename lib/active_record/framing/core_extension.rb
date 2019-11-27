@@ -44,7 +44,7 @@ module ActiveRecord
       def arel_table
         if (current_frame = self.current_frame)
           # puts "arel_table: #{current_frame.name.cyan}"
-          current_frame
+          current_frame.arel_table
         else
           super.tap do |at|
             # puts "arel_table #{at.name.red}"

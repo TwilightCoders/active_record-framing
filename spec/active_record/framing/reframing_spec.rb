@@ -12,8 +12,8 @@ describe ActiveRecord::Framing do
   context 'unframing' do
     it 'does not apply frames' do
       User.create(kind: 1)
-      user = User.unframed.joins(:comments).where(kind: 1).first
-      expect(user.kind).to be_nil
+      user = User.unframed.where(kind: 1).first
+      expect(user.kind).to eq(1)
     end
   end
 
@@ -39,7 +39,8 @@ describe ActiveRecord::Framing do
             (SELECT "documents".* FROM "documents" WHERE \(?"documents"."deleted_at" IS NOT NULL\)?)
         SELECT "users".* FROM "users"
           INNER JOIN "deleted/documents" ON "deleted/documents"."user_id" = "users"."id" AND "deleted/documents"."scope" = 1
-          INNER JOIN "comments" ON "comments"."post_id" = "deleted/documents"."id" WHERE \(?"users"."kind" IS NOT NULL\)?
+          INNER JOIN "comments" ON "comments"."post_id" = "deleted/documents"."id"
+          WHERE \(?"users"."kind" IS NOT NULL\)?
       SQL
     end
 
@@ -53,7 +54,8 @@ describe ActiveRecord::Framing do
             (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
         SELECT "users".* FROM "users"
           INNER JOIN "documents" ON "documents"."user_id" = "users"."id" AND "documents"."scope" = 1
-          INNER JOIN "comments" ON "comments"."post_id" = "documents"."id" WHERE \(?"users"."kind" IS NOT NULL\)?
+          INNER JOIN "comments" ON "comments"."post_id" = "documents"."id"
+          WHERE \(?"users"."kind" IS NOT NULL\)?
       SQL
     end
 

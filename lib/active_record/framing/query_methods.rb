@@ -23,9 +23,9 @@ module ActiveRecord
       #   end
       # end
 
-      # def frame(value)
-      #   spawn.frame!(value)
-      # end
+      def frame(value)
+        spawn.frame!(value)
+      end
 
       def frame!(value)
         value = value.all if (value.is_a?(Class) && value < ::ActiveRecord::Base)
@@ -39,6 +39,8 @@ module ActiveRecord
             {value.left.name => value}
           when String
             {arel_table.name => value}
+          when Hash
+            value
           else
             {}
           end
