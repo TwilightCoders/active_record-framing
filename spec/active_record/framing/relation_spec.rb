@@ -44,7 +44,7 @@ describe ActiveRecord::Framing::Relation do
           "documents" AS
             (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
         SELECT "users".* FROM "users"
-          INNER JOIN "documents" ON "documents"."user_id" = "users"."id" AND "documents"."scope" = 1 WHERE \(?"users"."kind" IS NOT NULL\)?
+          INNER JOIN "documents" ON (\(?("documents"."user_id" = "users"."id"\)?|\(?"documents"."scope" = 1\)?| AND ))+ WHERE \(?"users"."kind" IS NOT NULL\)?
       SQL
     end
   end
@@ -74,7 +74,7 @@ describe ActiveRecord::Framing::Relation do
         "documents" AS
           (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
         SELECT "all/users".* FROM "all/users"
-          INNER JOIN "documents" ON "documents"."user_id" = "all/users"."id" AND "documents"."scope" = 1
+          INNER JOIN "documents" ON (\(?("documents"."user_id" = "all/users"."id"\)?|\(?"documents"."scope" = 1\)?| AND ))+
       SQL
     end
   end

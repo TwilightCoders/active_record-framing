@@ -52,7 +52,6 @@ describe ActiveRecord::Framing::QueryMethods do
     xit 'should frame the association' do
       $pry = true
       query = Post.all.frame(Post::Deleted)
-      Post::Deleted === ActiveRecord::Base
       sql = query.to_sql
       expect(sql).to match_sql(<<~SQL)
         WITH "users" AS

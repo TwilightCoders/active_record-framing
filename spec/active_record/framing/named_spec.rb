@@ -10,7 +10,7 @@ describe ActiveRecord::Framing::Named do
         "users" AS
           (SELECT "users".* FROM "users" WHERE "users"."kind" = 1)
       SELECT "deleted/documents".* FROM "deleted/documents"
-        INNER JOIN "users" ON "users"."id" = "deleted/documents"."user_id" AND \(?"users"."kind" IS NOT NULL\)?
+        INNER JOIN "users" ON (\(?("users"\."id" = "deleted\/documents"\."user_id"\)?|\(?"users"\."kind" IS NOT NULL\)?| AND ))+
         INNER JOIN "comments" ON "comments"."post_id" = "deleted/documents"."id"
     SQL
   end
@@ -45,7 +45,7 @@ describe ActiveRecord::Framing::Named do
              "comments"."created_at" AS t\\d_r\\d,
              "comments"."updated_at" AS t\\d_r\\d
       FROM "deleted/documents"
-      LEFT OUTER JOIN "users" ON "users"."id" = "deleted/documents"."user_id" AND ("users"."kind" IS NOT NULL)
+      LEFT OUTER JOIN "users" ON (\(?("users"\."id" = "deleted\/documents"\."user_id"\)?|\(?"users"\."kind" IS NOT NULL\)?| AND ))+
       LEFT OUTER JOIN "comments" ON "comments"."post_id" = "deleted/documents"."id"
     SQL
   end

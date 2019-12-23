@@ -25,6 +25,8 @@ end
 RSpec.configure do |config|
   config.order = 'random'
 
+  config.example_status_persistence_file_path = 'spec/results.txt'
+
   # Configure the DatabaseCleaner
   config.before(:suite) do
     DatabaseCleaner.strategy = :transaction

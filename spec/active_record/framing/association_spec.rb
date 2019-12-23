@@ -7,11 +7,10 @@ describe ActiveRecord::Framing::Relation do
       User.create(name: 'foo', kind: 1)
 
       user = User.first
-
-      expect(user.posts.to_sql).to match_sql(<<~SQL)
-        WITH
-          "documents" AS
-            (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
+      sql = user.posts.to_sql
+      expect(sql).to match_sql(<<~SQL)
+        WITH "documents" AS
+          (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
         SELECT "documents".* FROM "documents" WHERE "documents"."scope" = 1 AND "documents"."user_id" = #{user.id}
       SQL
 
@@ -37,6 +36,7 @@ describe ActiveRecord::Framing::Relation do
     it 'derives the class name properly' do
       poster = User.create(name: 'bob')
       commenter = User.create(name: 'alice', kind: 1)
+
       post = Post.create(user: poster)
 
       4.times do
