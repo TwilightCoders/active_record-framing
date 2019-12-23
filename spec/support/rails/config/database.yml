@@ -1,6 +1,7 @@
 test:
   adapter: postgresql
   host: localhost
+  port: 5432
   encoding: unicode
   database: active_record-framing-test
   prepared_statements: false

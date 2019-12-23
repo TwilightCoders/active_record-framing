@@ -13,6 +13,13 @@ module ActiveRecord
         end
       end
 
+      # NOTE: Arel 8.x / Rails 5.1 compatibility
+      # Method exists on AR::Model, but default value for table
+      # is scoped incorrectly without this proxy override
+      def arel_attribute(column_name, table = arel_table)
+        super
+      end
+
       def table=(value)
         @table = value
       end

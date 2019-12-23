@@ -4,16 +4,6 @@ module ActiveRecord
   module Framing
     module QueryMethods
 
-      if ::ActiveRecord.version >= Gem::Version.new("5.1") # 5.1+
-        require 'active_record/framing/compat/active_record_5_1'
-      elsif ::ActiveRecord.version >= Gem::Version.new("5.0") # 5.0+
-        require 'active_record/framing/compat/active_record_5_0'
-      elsif ::ActiveRecord.version >= Gem::Version.new("4.2") # 4.2+
-        require 'active_record/framing/compat/active_record_4_2'
-      else
-        raise NotImplementedError, "ActiveRecord::Framing does not support Rails #{::ActiveRecord.version}"
-      end
-
       def frame(value)
         spawn.frame!(value)
       end

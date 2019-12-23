@@ -21,12 +21,26 @@ module ActiveRecord
         unframed_all.merge(current_frame || default_framed)
       end
 
-      def default_framed
-        if !ignore_default_frame? && !ActiveRecord::Framing.disabled?
-          relation.frame(build_default_frame)
-        else
-          relation
-        end
+      # def all
+      #   current_frame = self.current_frame
+
+      #   if current_frame
+      #     if self == current_frame.klass
+      #       current_frame.clone
+      #     else
+      #       unframed_all.merge!(current_frame)
+      #     end
+      #   else
+      #     default_framed
+      #   end
+      # end
+
+      def scope_for_association(scope = relation) # :nodoc:
+        unframed_scope_for_association(scope).merge(current_frame || default_framed)
+      end
+
+      def default_framed(my_frame = relation)
+        build_default_frame(my_frame) || my_frame
       end
 
       def frames
@@ -150,7 +164,11 @@ module ActiveRecord
 
         arel_tn = "#{frame_name}/#{self.table_name}"
 
-        at = Arel::Table.new(arel_tn, arel_table.engine)
+        at = arel_table.clone.tap do |a_t|
+          a_t.name = arel_tn
+        end
+        # at = Arel::Table.new(arel_tn, arel_table.engine)
+        # at = Arel::Table.new(arel_tn, self)
 
         frames[constant] = Proc.new do
           build_frame([body].compact, at, relation, &block)

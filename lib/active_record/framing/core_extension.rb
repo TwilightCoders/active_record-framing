@@ -10,6 +10,8 @@ module ActiveRecord
     def self.prepended(subclass)
       subclass.singleton_class.class_eval do
         alias_method :unframed_all, :all
+        # NOTE: not for 4.2
+        alias_method :unframed_scope_for_association, :scope_for_association if subclass.respond_to?(:scope_for_association)
 
         # Subclasses need to be able to call its parent's
         protected :relation
@@ -30,6 +32,13 @@ module ActiveRecord
 
     def self.disabled?
       @disabled == true
+    end
+
+    class Foo
+
+      def self.whatever
+        @whatever
+      end
     end
 
     module ClassMethods # :nodoc:

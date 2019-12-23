@@ -38,7 +38,7 @@ describe ActiveRecord::Framing do
           "deleted/documents" AS
             (SELECT "documents".* FROM "documents" WHERE \(?"documents"."deleted_at" IS NOT NULL\)?)
         SELECT "users".* FROM "users"
-          INNER JOIN "deleted/documents" ON "deleted/documents"."user_id" = "users"."id" AND "deleted/documents"."scope" = 1
+          INNER JOIN "deleted/documents" ON (\(?("deleted/documents"."user_id" = "users"."id"\)?|\(?"deleted/documents"."scope" = 1\)?| AND ))+
           INNER JOIN "comments" ON "comments"."post_id" = "deleted/documents"."id"
           WHERE \(?"users"."kind" IS NOT NULL\)?
       SQL
@@ -53,7 +53,7 @@ describe ActiveRecord::Framing do
           "documents" AS
             (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
         SELECT "users".* FROM "users"
-          INNER JOIN "documents" ON "documents"."user_id" = "users"."id" AND "documents"."scope" = 1
+          INNER JOIN "documents" ON (\(?("documents"."user_id" = "users"."id"\)?|\(?"documents"."scope" = 1\)?| AND ))+
           INNER JOIN "comments" ON "comments"."post_id" = "documents"."id"
           WHERE \(?"users"."kind" IS NOT NULL\)?
       SQL

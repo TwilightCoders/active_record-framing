@@ -13,12 +13,13 @@ module ActiveRecord
       def fix_table_engine(table, engine)
         case table
         when ::Arel::Nodes::TableAlias
-          table.left.instance_variable_set(:@engine, engine) if table.left.engine == ::ActiveRecord::Base
+          table.left.engine = engine # if table.left.engine == ::ActiveRecord::Base
           table.left.name = engine.table_name
         else
-          table.instance_variable_set(:@engine, engine) if table.engine == ::ActiveRecord::Base
+          table.engine = engine # if table.engine == ::ActiveRecord::Base
           table.name = engine.table_name
         end
+        # binding.pry if table.name == "users"
       end
     end
   end
