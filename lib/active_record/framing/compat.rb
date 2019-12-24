@@ -10,5 +10,5 @@ when Gem::Requirement.new('~> 5.0') # 5.1+
 when Gem::Requirement.new('~> 6.0.0') # 6.0.x
   require 'active_record/framing/compat/active_record_6_0'
 else
-  raise NotImplementedError, "ActiveRecord::Framing does not support Rails #{::ActiveRecord.version}"
+  raise NotImplementedError, "ActiveRecord::Framing does not support Rails #{::ActiveRecord.version}" unless ENV['EDGE_TESTING']
 end
