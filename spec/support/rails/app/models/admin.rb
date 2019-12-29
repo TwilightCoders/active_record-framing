@@ -10,4 +10,8 @@ class Admin < User
     select(arel_table[:id], arel_table[:kind]).where(kind: 2)
   }
 
+  frame :special, -> {
+    where(arel_table[:email].eq('special.person@example.com'))
+  }
+
 end

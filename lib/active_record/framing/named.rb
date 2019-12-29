@@ -21,25 +21,22 @@ module ActiveRecord
         unframed_all.merge(current_frame || default_framed)
       end
 
-      # def all
-      #   current_frame = self.current_frame
-
-      #   if current_frame
-      #     if self == current_frame.klass
-      #       current_frame.clone
-      #     else
-      #       unframed_all.merge!(current_frame)
-      #     end
-      #   else
-      #     default_framed
-      #   end
-      # end
+      def ignore_type_condition
+        old, @finder_needs_type_condition = @finder_needs_type_condition, :false
+        yield
+      ensure
+        @finder_needs_type_condition = old
+      end
 
       def scope_for_association(scope = relation) # :nodoc:
         unframed_scope_for_association(scope).merge(current_frame || default_framed)
       end
 
-      def default_framed(my_frame = relation)
+      def default_framed(my_frame = nil)
+        my_frame ||= ignore_type_condition do
+          relation
+        end
+
         build_default_frame(my_frame) || my_frame
       end
 

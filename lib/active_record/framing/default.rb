@@ -74,10 +74,15 @@ module ActiveRecord
             collection.merge!(frame_relation || base_rel)
           end
 
-          relation.frame!(Arel::Nodes::As.new(arel_table, cte_relation.arel)).tap do |rel|
-            rel.table = arel_table
-            extension = Module.new(&block) if block_given?
-            rel.extending!(extension) if extension
+          # This turns off the STI condition clause outside of the frames
+          # doit = finder_needs_type_condition? # gotta call this to init instance variable
+          # orig, @finder_needs_type_condition = @finder_needs_type_condition, :false
+          ignore_type_condition do
+            relation.frame!(Arel::Nodes::As.new(arel_table, cte_relation.arel)).tap do |rel|
+              rel.table = arel_table
+              extension = Module.new(&block) if block_given?
+              rel.extending!(extension) if extension
+            end
           end
         end
 

@@ -24,6 +24,26 @@ describe ActiveRecord::Framing::QueryMethods do
     end
   end
 
+  context 'STI' do
+    it 'should scope down using correct table name' do
+      sql = Admin::Special.all.to_sql
+      expect(sql).to match_sql(<<~SQL)
+        WITH "special/users" AS
+          (SELECT "users".* FROM "users" WHERE "users"."type" IN ('Admin') AND "users"."email" = 'special.person@example.com')
+        SELECT "special/users".* FROM "special/users"
+      SQL
+    end
+
+    it 'should not repeat inheritance scope' do
+      sql = Admin.all.to_sql
+      expect(sql).to match_sql(<<~SQL)
+        WITH "users" AS
+          (SELECT "users".* FROM "users" WHERE "users"."kind" = 2)
+        SELECT "users"."id", "users"."kind" FROM "users" WHERE \(?"users"."kind" IS NOT NULL\)? AND "users"."type" IN ('Admin')
+      SQL
+    end
+  end
+
   context '.from' do
     xit 'should collect the frames from the other query' do
       user = User.create(name: 'bob', type: 'User')
