@@ -51,8 +51,9 @@ RSpec::Matchers.define :eq_sql do |expected_sql|
 end
 
 RSpec::Matchers.define :match_sql do |expected_sql|
-  #
-  expected_sql.squish!.gsub!(/([\.\*\(\)\/])/, '\\\\\1')
+  expected_sql.squish!
+  expected_sql.gsub!(/((?<!\\)[\.\*\\\/\(\)])/, '\\\\\1') # Escape all the special characters that are not already escaped
+  expected_sql.gsub!(/(\\\\([\(\)]))/, '\2') # "Unescape" the special characters that are already escaped
 
   match do |actual_sql|
     actual_sql.match(Regexp.new(expected_sql))

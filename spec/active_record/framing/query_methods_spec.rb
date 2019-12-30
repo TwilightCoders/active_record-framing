@@ -29,7 +29,7 @@ describe ActiveRecord::Framing::QueryMethods do
       sql = Admin::Special.all.to_sql
       expect(sql).to match_sql(<<~SQL)
         WITH "special/users" AS
-          (SELECT "users".* FROM "users" WHERE "users"."type" IN ('Admin') AND "users"."email" = 'special.person@example.com')
+          (SELECT "users".* FROM "users" WHERE "users"."type" \\(IN|=\\) (?'Admin')? AND "users"."email" = 'special.person@example.com')
         SELECT "special/users".* FROM "special/users"
       SQL
     end
@@ -39,7 +39,7 @@ describe ActiveRecord::Framing::QueryMethods do
       expect(sql).to match_sql(<<~SQL)
         WITH "users" AS
           (SELECT "users".* FROM "users" WHERE "users"."kind" = 2)
-        SELECT "users"."id", "users"."kind" FROM "users" WHERE \(?"users"."kind" IS NOT NULL\)? AND "users"."type" IN ('Admin')
+        SELECT "users"."id", "users"."kind" FROM "users" WHERE \\((?"users"."kind" IS NOT NULL)?|\\("users"."type" \\(IN|=\\) (?'Admin')?\\)| AND \\)+
       SQL
     end
   end
@@ -60,9 +60,9 @@ describe ActiveRecord::Framing::QueryMethods do
       sql = outer.to_sql
       expect(sql).to match_sql(<<~SQL)
         WITH "users" AS
-        (SELECT "users".* FROM "users" WHERE "users"."type" = 'User')
+        \(SELECT "users".* FROM "users" WHERE "users"."type" = 'User'\)
         SELECT "users".* FROM
-          (SELECT "users".* FROM "users" WHERE "users"."type" IS NOT NULL AND "users"."name" = 'bob')
+          \(SELECT "users".* FROM "users" WHERE "users"."type" IS NOT NULL AND "users"."name" = 'bob'\)
           subquery WHERE "users"."type" IS NOT NULL AND "users"."type" = 'Admin'
       SQL
     end
@@ -75,9 +75,9 @@ describe ActiveRecord::Framing::QueryMethods do
       sql = query.to_sql
       expect(sql).to match_sql(<<~SQL)
         WITH "users" AS
-        (SELECT "users".* FROM "users" WHERE "users"."type" = 1)
+        \(SELECT "users".* FROM "users" WHERE "users"."type" = 1\)
         SELECT "users".* FROM
-          (SELECT "users".* FROM "users" WHERE "users"."type" IS NOT NULL AND "users"."name" = 'bob')
+          \(SELECT "users".* FROM "users" WHERE "users"."type" IS NOT NULL AND "users"."name" = 'bob'\)
           subquery WHERE "users"."type" IS NOT NULL AND "users"."type" = 2
       SQL
     end
