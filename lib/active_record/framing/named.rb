@@ -147,14 +147,10 @@ module ActiveRecord
       def frame(frame_name, body = nil, &block)
         constant = frame_name.to_s.classify.to_sym
 
-        if !body.respond_to?(:call)
-          # raise ArgumentError, "The frame body needs to be callable."
-          warn "You've assigned a frame (#{frame_name}) with no callable block." unless
-            AttributeMethods::BLACKLISTED_CLASS_CONSTS.include?(frame_name)
-        elsif dangerous_class_const?(constant)
+        if dangerous_class_const?(constant)
           raise ArgumentError, "You tried to define a frame named \"#{constant}\" " \
-            "on the model \"#{self.constant}\", but Active Record already defined " \
-            "a class method with the same name."
+            "on the model \"#{self.constant}\", but there is a constant already " \
+            "defined with the same name."
         end
 
         valid_frame_name?(constant)
