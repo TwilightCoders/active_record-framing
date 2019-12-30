@@ -6,9 +6,9 @@ describe ActiveRecord::Framing::Named do
     expect(Post::Deleted.joins(:user, :comments).to_sql).to match_sql(<<~SQL)
       WITH
         "deleted/documents" AS
-          (SELECT "documents".* FROM "documents" WHERE \(?"documents"."deleted_at" IS NOT NULL\)?),
+          \(SELECT "documents".* FROM "documents" WHERE \(?"documents"."deleted_at" IS NOT NULL\)?\),
         "users" AS
-          (SELECT "users".* FROM "users" WHERE "users"."kind" = 1)
+          \(SELECT "users".* FROM "users" WHERE "users"."kind" = 1\)
       SELECT "deleted/documents".* FROM "deleted/documents"
         INNER JOIN "users" ON (\(?("users"\."id" = "deleted\/documents"\."user_id"\)?|\(?"users"\."kind" IS NOT NULL\)?| AND ))+
         INNER JOIN "comments" ON "comments"."post_id" = "deleted/documents"."id"
