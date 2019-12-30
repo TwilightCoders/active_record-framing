@@ -23,6 +23,7 @@ addons:
   postgresql: 9.5
 
 rvm:
+  - 2.7
   - 2.6
   - 2.5
   - 2.4
@@ -51,6 +52,8 @@ jobs:
   - gemfile: gemfiles/activerecord-edge.Gemfile
 
   exclude:
+  - rvm: 2.7
+    gemfile: gemfiles/activerecord-4.2.Gemfile
   - rvm: 2.6
     gemfile: gemfiles/activerecord-4.2.Gemfile
   - rvm: 2.3
