@@ -5,17 +5,13 @@ class Post < ::ActiveRecord::Base
     where(deleted_at: nil)
   }
 
-  puts "after default_frame"
   frame :deleted, -> {
     where.not(deleted_at: nil)
   }
 
-  puts "after frame :deleted"
-
   default_scope {
     where(scope: 1)
   }
-  puts "after default_scope"
 
   # Explicitely have associations after named frames.
   # Tests for the subclasses keeping in sync with the
