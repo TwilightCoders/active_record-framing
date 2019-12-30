@@ -14,10 +14,9 @@ describe ActiveRecord::Framing::QueryMethods do
         post = Post.create(title: 'hi', user: user, deleted_at: Time.now)
         comment = Comment.create(post: post, user: admin)
 
-        count = log_sql do
-          # TODO: Add :user back to test disambiguation between "WITH users" and "WITH admins" (in join)
-          Post::Deleted.send(method, :admin_commenters, :comments).count
-        end
+        # TODO: Add :user back to test disambiguation between "WITH users" and "WITH admins" (in join)
+        count = Post::Deleted.send(method, :admin_commenters, :comments).count
+
         expect(count).to eq(1)
       end
 
