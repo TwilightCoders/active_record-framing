@@ -5,7 +5,6 @@ require 'active_record/framing/spawn_methods'
 require 'active_record/framing/attribute_methods'
 require 'active_record/framing/relation'
 require 'active_record/framing/join_dependency'
-require 'active_record/framing/reflection'
 require 'active_record/framing/compat'
 
 module ActiveRecord::Framing
