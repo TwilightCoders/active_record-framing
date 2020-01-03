@@ -118,9 +118,6 @@ module ActiveRecord
         klass.current_frame = previous unless @delegate_to_klass
       end
 
-      def scoping
-        framing { super }
-      end
     end
   end
 end
