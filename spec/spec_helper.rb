@@ -27,7 +27,6 @@ RSpec.configure do |config|
 
   config.example_status_persistence_file_path = 'spec/results.txt'
 
-  # Configure the DatabaseCleaner
   config.before(:suite) do
     DatabaseCleaner.strategy = :transaction
     DatabaseCleaner.clean_with(:truncation)
@@ -55,8 +54,9 @@ RSpec::Matchers.define :match_sql do |expected_sql|
   expected_sql.gsub!(/((?<!\\)[\.\*\\\/\(\)])/, '\\\\\1') # Escape all the special characters that are not already escaped
   expected_sql.gsub!(/(\\\\([\(\)]))/, '\2') # "Unescape" the special characters that are already escaped
 
+  expexted_regex = Regexp.new(expected_sql)
   match do |actual_sql|
-    actual_sql.match(Regexp.new(expected_sql))
+    actual_sql.match(expexted_regex)
   end
 
   failure_message do |actual_sql|
