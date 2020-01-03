@@ -42,8 +42,8 @@ module ActiveRecord
     end
 
     module ClassMethods # :nodoc:
-      def current_frame
-        FrameRegistry.value_for(:current_frame, self)
+      def current_frame(skip_inherited_frame = false)
+        FrameRegistry.value_for(:current_frame, self, skip_inherited_frame)
       end
 
       def current_frame=(frame)
@@ -93,9 +93,22 @@ module ActiveRecord
       end
 
       # Obtains the value for a given +frame_type+ and +model+.
-      def value_for(frame_type, model)
+      # def value_for(frame_type, model)
+      #   raise_invalid_frame_type!(frame_type)
+      #   return @registry[frame_type][model]# if skip_inherited_frame
+      # end
+
+      # Obtains the value for a given +scope_type+ and +model+.
+      def value_for(frame_type, model, skip_inherited_frame = false)
         raise_invalid_frame_type!(frame_type)
-        return @registry[frame_type][model]# if skip_inherited_frame
+        return @registry[frame_type][model] if skip_inherited_frame
+        klass = model
+        base = model.base_class
+        while klass <= base
+          value = @registry[frame_type][klass]
+          return value if value
+          klass = klass.superclass
+        end
       end
 
       # Sets the +value+ for a given +frame_type+ and +model+.
