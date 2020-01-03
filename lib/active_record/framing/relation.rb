@@ -112,7 +112,7 @@ module ActiveRecord
       # Please check unframed if you want to remove all previous frames (including
       # the default_frame) during the execution of a block.
       def framing
-        previous, klass.current_frame = klass.current_frame, self unless @delegate_to_klass
+        previous, klass.current_frame = klass.current_frame(true), self unless @delegate_to_klass
         yield
       ensure
         klass.current_frame = previous unless @delegate_to_klass
