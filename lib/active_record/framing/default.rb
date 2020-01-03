@@ -70,7 +70,8 @@ module ActiveRecord
           cte_relation = frames.inject(base_rel.clone) do |collection, frame|
             frame = frame.respond_to?(:to_proc) ? frame : frame.method(:call)
             # Exec the frame, or grab the default_frame (by calling relation)
-            frame_relation = base_rel.instance_exec(&frame)
+
+            frame_relation = collection.instance_exec(&frame)
             collection.merge!(frame_relation || base_rel)
           end
 
