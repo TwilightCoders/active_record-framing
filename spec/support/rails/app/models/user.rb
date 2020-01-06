@@ -8,7 +8,7 @@ class User < ::ActiveRecord::Base
   }
 
   default_frame {
-    where(arel_table[:kind].eq(1))
+    where(kind: 1)
     # where(kind: 1)
   }
 

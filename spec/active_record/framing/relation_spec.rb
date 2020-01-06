@@ -8,9 +8,9 @@ describe ActiveRecord::Framing::Relation do
       expect(User.custom_scope.to_sql).to match_sql(<<~SQL)
         WITH
           "users" AS
-            (SELECT "users".* FROM "users" WHERE \(?"users"."kind" = 1\)?)
+            (SELECT "users".* FROM "users" WHERE \(?("users"."kind" = 1| AND |"users"."kind" IS NOT NULL)+\)?)
         SELECT "users".* FROM "users"
-        INNER JOIN posts ON posts.user_id = users.id WHERE \(?"users"."kind" IS NOT NULL\)?
+        INNER JOIN posts ON posts.user_id = users.id
       SQL
     end
 
@@ -19,10 +19,9 @@ describe ActiveRecord::Framing::Relation do
   context 'given a default frame' do
     it 'handles a simple select' do
       expect(User.all.to_sql).to match_sql(<<~SQL)
-        WITH
-          "users" AS
-            (SELECT "users".* FROM "users" WHERE \(?"users"."kind" = 1\)?)
-        SELECT "users".* FROM "users" WHERE \(?"users"."kind" IS NOT NULL\)?
+        WITH "users" AS
+          (SELECT "users".* FROM "users" WHERE \(?("users"."kind" = 1| AND |"users"."kind" IS NOT NULL)+\)?)
+        SELECT "users".* FROM "users"
       SQL
     end
 
@@ -30,9 +29,9 @@ describe ActiveRecord::Framing::Relation do
       expect(User.joins(:comments).to_sql).to match_sql(<<~SQL)
         WITH
           "users" AS
-            (SELECT "users".* FROM "users" WHERE \(?"users"."kind" = 1\)?)
+            (SELECT "users".* FROM "users" WHERE \(?("users"."kind" IS NOT NULL| AND |"users"."kind" = 1)+\)?)
         SELECT "users".* FROM "users"
-          INNER JOIN "comments" ON "comments"."user_id" = "users"."id" WHERE \(?"users"."kind" IS NOT NULL\)?
+          INNER JOIN "comments" ON "comments"."user_id" = "users"."id"
       SQL
     end
 

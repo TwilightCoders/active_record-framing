@@ -37,6 +37,7 @@ gemfile:
   - gemfiles/activerecord-4.2.Gemfile
 
 jobs:
+  fast_finish: true
   include:
     - gemfile: gemfiles/activerecord-edge.Gemfile
       rvm: 2.7
@@ -56,6 +57,10 @@ jobs:
     gemfile: gemfiles/activerecord-4.2.Gemfile
   - rvm: 2.6
     gemfile: gemfiles/activerecord-4.2.Gemfile
+  - rvm: 2.7
+    gemfile: gemfiles/activerecord-5.0.Gemfile
+  - rvm: 2.7
+    gemfile: gemfiles/activerecord-5.1.Gemfile
   - rvm: 2.3
     gemfile: gemfiles/activerecord-6.0.Gemfile
   - rvm: 2.4

@@ -4,7 +4,7 @@ describe ActiveRecord::Framing do
 
   context '#disable' do
     it 'allows for default values in create' do
-      Post.create(deleted_at: Time.now)
+      Post.create(deleted_at: Time.now, scope: 1)
 
       # post = ActiveRecord::Framing.disable do
       #   Post.all.first

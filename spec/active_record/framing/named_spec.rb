@@ -58,6 +58,14 @@ describe ActiveRecord::Framing::Named do
 
   end
 
+  it 'warns if creating another frame by the same name' do
+    expect(Post.logger).to receive(:warn).with("Creating frame :Test. Overwriting existing const Post::Test.")
+    Post.class_eval do
+      frame :test, -> {}
+      frame :test, -> {}
+    end
+  end
+
   context '#unframed' do
     it 'does not employ CTE' do
       expect(User.unframed.to_sql).to match_sql(<<~SQL.squish)
