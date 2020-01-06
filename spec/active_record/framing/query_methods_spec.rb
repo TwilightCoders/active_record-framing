@@ -15,31 +15,11 @@ describe ActiveRecord::Framing::QueryMethods do
         comment = Comment.create(post: post, user: admin)
 
         # TODO: Add :user back to test disambiguation between "WITH users" and "WITH admins" (in join)
-        count = Post::Deleted.send(method, :admin_commenters, :comments).count
 
+        count = Post::Deleted.send(method, :admin_commenters, :comments).count
         expect(count).to eq(1)
       end
 
-    end
-  end
-
-  context 'STI' do
-    it 'should scope down using correct table name' do
-      sql = Admin::Special.all.to_sql
-      expect(sql).to match_sql(<<~SQL)
-        WITH "special/users" AS
-          (SELECT "users".* FROM "users" WHERE "users"."type" \\(IN|=\\) (?'Admin')? AND "users"."email" = 'special.person@example.com')
-        SELECT "special/users".* FROM "special/users"
-      SQL
-    end
-
-    it 'should not repeat inheritance scope' do
-      sql = Admin.all.to_sql
-      expect(sql).to match_sql(<<~SQL)
-        WITH "users" AS
-          (SELECT "users".* FROM "users" WHERE "users"."kind" = 2)
-        SELECT "users"."id", "users"."kind" FROM "users" WHERE \\((?"users"."kind" IS NOT NULL)?|\\("users"."type" \\(IN|=\\) (?'Admin')?\\)| AND \\)+
-      SQL
     end
   end
 

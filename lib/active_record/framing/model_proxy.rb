@@ -44,6 +44,10 @@ module ActiveRecord
         @table
       end
 
+      # Might not need this
+      # def is_a?(obj)
+      #   __getobj__.is_a?(obj)
+      # end
     end
   end
 end

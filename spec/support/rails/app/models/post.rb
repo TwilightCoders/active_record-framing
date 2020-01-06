@@ -2,15 +2,15 @@ class Post < ::ActiveRecord::Base
   self.table_name = "documents"
 
   default_frame {
-    where(deleted_at: nil)
+    where(arel_table[:deleted_at].eq(nil))
   }
 
   frame :deleted, -> {
-    where.not(deleted_at: nil)
+    where(arel_table[:deleted_at].not_eq(nil))
   }
 
   default_scope {
-    where(scope: 1)
+    where(arel_table[:scope].eq(1))
   }
 
   # Explicitely have associations after named frames.

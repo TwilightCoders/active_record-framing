@@ -11,12 +11,7 @@ module ActiveRecord
           instance_writer: false,
           instance_predicate: false
 
-        class_attribute :default_frame_override,
-          instance_writer: false,
-          instance_predicate: false
-
         self.default_frames = []
-        self.default_frame_override = nil
       end
 
       module ClassMethods
@@ -76,16 +71,15 @@ module ActiveRecord
             collection.instance_exec(&frame)
           end
 
-          # This turns off the STI condition clause outside of the frames
-          # doit = finder_needs_type_condition? # gotta call this to init instance variable
-          # orig, @finder_needs_type_condition = @finder_needs_type_condition, :false
-          ignore_type_condition do
-            relation.frame!(Arel::Nodes::As.new(arel_table, cte_relation.arel)).tap do |rel|
-              rel.table = arel_table
-              extension = Module.new(&block) if block_given?
-              rel.extending!(extension) if extension
-            end
+          relation_without_type_condition.frame!(Arel::Nodes::As.new(arel_table, cte_relation.arel)).tap do |rel|
+            rel.table = arel_table
+            extension = Module.new(&block) if block_given?
+            rel.extending!(extension) if extension
           end
+        end
+
+        def default_frame_override?
+          :true == (@default_frame_override ||= !::ActiveRecord::Base.is_a?(method(:default_frame).owner) ? :true : :false)
         end
 
       private
@@ -135,15 +129,13 @@ module ActiveRecord
         #       # Should return a frame, you can call 'super' here etc.
         #     end
         #   end
-        def default_frame(frame_name = nil, frame: nil) # :doc:
-          frame = Proc.new if block_given?
+        def default_frame(frame_name = nil, &frame) # :doc:
 
-          if frame.is_a?(Relation) || !frame.respond_to?(:call)
-            raise ArgumentError,
-              "Support for calling #default_frame without a block is removed. For example instead " \
-              "of `default_frame where(color: 'red')`, please use " \
-              "`default_frame { where(color: 'red') }`. (Alternatively you can just redefine " \
-              "self.default_frame.)"
+          if default_frame_override?
+            warn <<~WARN
+              There is a default_frame method defined on #{method(:default_frame).owner}
+              which will be overridden as a result of this default frame block
+            WARN
           end
 
           # TODO: Include default_scopes?
@@ -174,22 +166,18 @@ module ActiveRecord
         def build_default_frame(base_rel = nil)
           return if abstract_class?
 
-          if default_frame_override.nil?
-            self.default_frame_override = !::ActiveRecord::Base.is_a?(method(:default_frame).owner)
+          frames_to_build = if default_frame_override?
+            # The user has defined their own default frame method, so call that
+            [method(:default_frame)]
+          else
+            default_frames
           end
 
-          if default_frame_override
-            # The user has defined their own default frame method, so call that
-            evaluate_default_frame do
-              if (frame = default_frame)
-                (base_rel ||= relation).frame!(frame)
-              end
-            end
-          elsif default_frames.any?
+          if frames_to_build.any?
             evaluate_default_frame do
               # cte_table = Arel::Table.new(table_name)
               cte_table = default_arel_table
-              build_frame(default_frames, cte_table, base_rel || relation)
+              build_frame(frames_to_build, cte_table, base_rel || relation)
             end
           end
         end
