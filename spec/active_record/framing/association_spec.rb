@@ -10,8 +10,8 @@ describe ActiveRecord::Framing::Relation do
       sql = user.posts.to_sql
       expect(sql).to match_sql(<<~SQL)
         WITH "documents" AS
-          (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
-        SELECT "documents".* FROM "documents" WHERE "documents"."scope" = 1 AND "documents"."user_id" = #{user.id}
+          (SELECT "documents".* FROM "documents" WHERE \(?("documents"."scope" = 1| AND |"documents"."deleted_at" IS NULL)+\)?)
+        SELECT "documents".* FROM "documents" WHERE "documents"."user_id" = #{user.id}
       SQL
 
     end
@@ -20,7 +20,8 @@ describe ActiveRecord::Framing::Relation do
       user = User.create(name: 'bob')
 
       4.times do
-        Post.create(user: user)
+        # NOTE: Adding "scope" due to default_scope on Post
+        Post.create(user: user, scope: 1)
       end
 
       posts = user.posts
@@ -45,9 +46,9 @@ describe ActiveRecord::Framing::Relation do
 
       expect(post.commenters.to_sql).to match_sql(<<~SQL)
         WITH "users" AS
-          (SELECT "users".* FROM "users" WHERE "users"."kind" = 1)
+          (SELECT "users".* FROM "users" WHERE \(?("users"."kind" IS NOT NULL| AND |"users"."kind" = 1)+\)?
         SELECT "users".* FROM "users"
-          INNER JOIN "comments" ON "users"."id" = "comments"."user_id" WHERE \(?"users"."kind" IS NOT NULL\)? AND "comments"."post_id" = #{post.id}
+          INNER JOIN "comments" ON "users"."id" = "comments"."user_id" WHERE "comments"."post_id" = #{post.id}
       SQL
 
     end

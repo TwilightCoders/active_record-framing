@@ -3,9 +3,9 @@ module ActiveRecord
     module JoinDependency
       def table_aliases_for(parent, node)
         super.tap do |list|
-          list.zip(node.reflection.chain).each do |aliaz, reflection|
+          list.zip(node.reflection.chain).each_with_index do |(table, reflection), i|
             engine = @join_root.base_klass.reframe_values.fetch(reflection.name) { reflection }.klass
-            fix_table_engine(aliaz, engine)
+            list[i] = fix_table_engine(table, engine)
           end
         end
       end
@@ -13,13 +13,13 @@ module ActiveRecord
       def fix_table_engine(table, engine)
         case table
         when ::Arel::Nodes::TableAlias
-          table.left.engine = engine # if table.left.engine == ::ActiveRecord::Base
-          table.left.name = engine.table_name
+          table.left.engine = engine
+        when ::Arel::Table
+          table = engine.arel_table
         else
-          table.engine = engine # if table.engine == ::ActiveRecord::Base
-          table.name = engine.table_name
+          warn "no good"
         end
-        # binding.pry if table.name == "users"
+        table
       end
     end
   end

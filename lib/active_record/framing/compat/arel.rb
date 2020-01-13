@@ -6,13 +6,13 @@ when Gem::Requirement.new('>= 7.0')
     end
 
     def engine=(value)
-      @type_caster = value.type_caster
+      @type_caster.instance_variable_set(:@types, value)
     end
   end
 
   Arel::Nodes::TableAlias.class_eval do
     def engine
-      left.send(:type_caster)
+      left.send(:type_caster).send(:types)
     end
   end
 else

@@ -21,6 +21,44 @@ module ActiveRecord
         unframed_all.merge(current_frame || default_framed)
       end
 
+
+      def all
+        if current_frame = self.current_frame
+          ignore_type_condition do
+            unframed_all.merge!(current_frame)
+          end
+        else
+          default_framed
+        end
+      end
+
+      def relation_without_type_condition
+        (@relation_without_type_condition ||= ignore_type_condition do
+          relation.freeze
+        end).dup # dup doesn't copy the 'frozen'
+      end
+
+      def relation_with_default_scope
+        (@relation_with_default_scope ||= unframed_all.freeze).dup # dup doesn't copy the 'frozen'
+      end
+
+      # def relation_with_default_scope_and_without_type_condition
+      #   (@relation_with_default_scope_and_without_type_condition ||= ignore_type_condition do
+      #     unframed_all.freeze
+      #   end).dup # dup doesn't copy the 'frozen'
+      # end
+
+      # def relation_without_default_scope_and_without_type_condition
+      #   (@relation_with_default_scope_and_without_type_condition ||= ignore_type_condition do
+      #     relation.freeze
+      #   end).dup # dup doesn't copy the 'frozen'
+      # end
+
+      # def relation_with_type_condition_and_without_default_scope
+      #   (@relation_with_type_condition_and_without_default_scope ||= relation.freeze).dup # dup doesn't copy the 'frozen'
+      # end
+
+      # Turns off the STI condition clause
       def ignore_type_condition
         old, @finder_needs_type_condition = @finder_needs_type_condition, :false
         yield
@@ -28,16 +66,21 @@ module ActiveRecord
         @finder_needs_type_condition = old
       end
 
-      def scope_for_association(scope = relation) # :nodoc:
-        unframed_scope_for_association(scope).merge(current_frame || default_framed)
+      def ignore_default_scope
+        old, self.ignore_default_scope = self.ignore_default_scope, true
+        yield
+      ensure
+        self.ignore_default_scope = old
       end
 
-      def default_framed(my_frame = nil)
-        my_frame ||= ignore_type_condition do
-          relation
+      def scope_for_association(scope = relation_without_type_condition) # :nodoc:
+        ignore_type_condition do
+          unframed_scope_for_association(scope).merge(current_frame || default_framed)
         end
+      end
 
-        build_default_frame(my_frame) || my_frame
+      def default_framed(my_frame = relation_without_type_condition)
+        build_default_frame(relation_with_default_scope) || unframed_all
       end
 
       def frames
@@ -157,6 +200,8 @@ module ActiveRecord
 
         arel_tn = "#{frame_name}/#{self.table_name}"
 
+        # The interface for creating an arel_table changes between arel versions.
+        # Ultimately, we just need a copy with it's "table name" changed.
         at = arel_table.clone.tap do |a_t|
           a_t.name = arel_tn
         end
@@ -164,14 +209,15 @@ module ActiveRecord
         # at = Arel::Table.new(arel_tn, self)
 
         frames[constant] = Proc.new do
-          build_frame([body].compact, at, relation, &block)
+          # Prevents the type condition from being in the frame (CTE)
+          rel = relation#_without_type_condition
+          build_frame([body].compact, at, rel, &block)
         end
       end
 
       private
 
         def valid_frame_name?(name)
-          # if const_defined?(name) && logger
           if frames.key?(name) && logger
             logger.warn "Creating frame :#{name}. " \
               "Overwriting existing const #{self.name}::#{name}."

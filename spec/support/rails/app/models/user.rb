@@ -8,11 +8,11 @@ class User < ::ActiveRecord::Base
   }
 
   default_frame {
-    where(arel_table[:kind].eq(1))
+    where(kind: 1)
     # where(kind: 1)
   }
 
-  frame :all#, -> {}
+  frame :all, -> {}
 
   # Clearly wont work with other frames, but hardcoded SQL is never recommended.
   scope :custom_scope, -> { joins("INNER JOIN posts ON posts.user_id = users.id") }

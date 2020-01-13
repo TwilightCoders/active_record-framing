@@ -3,6 +3,7 @@
 require "active_support/per_thread_registry"
 require "active_record/framing/default"
 require "active_record/framing/named"
+# require "active_record/framing/associations"
 
 module ActiveRecord
   module Framing
@@ -21,6 +22,7 @@ module ActiveRecord
       subclass.extend Named
       subclass.include AttributeMethods
       subclass.extend ClassMethods
+      # subclass.extend Associations
     end
 
     def self.disable
@@ -102,12 +104,12 @@ module ActiveRecord
       def value_for(frame_type, model, skip_inherited_frame = false)
         raise_invalid_frame_type!(frame_type)
         return @registry[frame_type][model] if skip_inherited_frame
-        klass = model
         base = model.base_class
-        while klass <= base
-          value = @registry[frame_type][klass]
+        while model <= base
+          value = @registry[frame_type][model]
+          # puts "Checking #{model.name} <= #{base.name} = #{value}"
           return value if value
-          klass = klass.superclass
+          model = model.superclass
         end
       end
 
