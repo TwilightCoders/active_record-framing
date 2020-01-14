@@ -27,6 +27,7 @@ describe ActiveRecord::Framing do
       end
 
       users = User.joins(posts: :comments).reframe(posts: Post::Deleted).distinct
+
       expect(users.length).to eq(1)
     end
 
