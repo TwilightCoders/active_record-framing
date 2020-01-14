@@ -5,16 +5,20 @@ module ActiveRecord
     module QueryMethods
 
       def frame(value)
-        spawn.frame!(value)
+        spawn.frame!(frame_cte_for(value))
       end
 
-      def frame!(value)
+      def frame!(cte)
+        self.frames_values = self.frames_values.merge(cte)
+        self
+      end
+
+      def frame_cte_for(value)
         value = value.all if (value.is_a?(Class) && value < ::ActiveRecord::Base)
 
         cte = \
           case value
           when ::ActiveRecord::Relation
-            # {value.table.name => value.frames_values}
             value.frames_values
           when Arel::Nodes::As
             {value.left.name => value}
@@ -25,10 +29,6 @@ module ActiveRecord
           else
             {}
           end
-
-        self.frames_values = self.frames_values.merge(cte)
-
-        self
       end
 
       def reframe(*args)
