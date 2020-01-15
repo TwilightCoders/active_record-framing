@@ -137,13 +137,6 @@ module ActiveRecord
         def default_frame(frame_name = nil, frame: nil) # :doc:
           frame = Proc.new if block_given?
 
-          if frame.is_a?(Relation) || !frame.respond_to?(:call)
-            raise ArgumentError,
-              "Support for calling #default_frame without a block is removed. For example instead " \
-              "of `default_frame where(color: 'red')`, please use " \
-              "`default_frame { where(color: 'red') }`. (Alternatively you can just redefine " \
-              "self.default_frame.)"
-          end
 
           # TODO: Include default_scopes?
           # frame(:unframed)
