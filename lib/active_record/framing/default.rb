@@ -11,12 +11,7 @@ module ActiveRecord
           instance_writer: false,
           instance_predicate: false
 
-        class_attribute :default_frame_override,
-          instance_writer: false,
-          instance_predicate: false
-
         self.default_frames = []
-        self.default_frame_override = nil
       end
 
       module ClassMethods
@@ -87,6 +82,10 @@ module ActiveRecord
           end
         end
 
+        def default_frame_override?
+          :true == (@default_frame_override ||= !::ActiveRecord::Base.is_a?(method(:default_frame).owner) ? :true : :false)
+        end
+
       private
 
         def ignore_default_frame=(ignore)
@@ -134,9 +133,14 @@ module ActiveRecord
         #       # Should return a frame, you can call 'super' here etc.
         #     end
         #   end
-        def default_frame(frame_name = nil, frame: nil) # :doc:
-          frame = Proc.new if block_given?
+        def default_frame(frame_name = nil, &frame) # :doc:
 
+          if default_frame_override?
+            warn <<~WARN
+              There is a default_frame method defined on #{method(:default_frame).owner}
+              which will be overridden as a result of this default frame block
+            WARN
+          end
 
           # TODO: Include default_scopes?
           # frame(:unframed)
@@ -166,22 +170,18 @@ module ActiveRecord
         def build_default_frame(base_rel = nil)
           return if abstract_class?
 
-          if default_frame_override.nil?
-            self.default_frame_override = !::ActiveRecord::Base.is_a?(method(:default_frame).owner)
+          frames_to_build = if default_frame_override?
+            # The user has defined their own default frame method, so call that
+            [method(:default_frame)]
+          else
+            default_frames
           end
 
-          if default_frame_override
-            # The user has defined their own default frame method, so call that
-            evaluate_default_frame do
-              if (frame = default_frame)
-                (base_rel ||= relation).frame!(frame)
-              end
-            end
-          elsif default_frames.any?
+          if frames_to_build.any?
             evaluate_default_frame do
               # cte_table = Arel::Table.new(table_name)
               cte_table = default_arel_table
-              build_frame(default_frames, cte_table, base_rel || relation)
+              build_frame(frames_to_build, cte_table, base_rel || relation)
             end
           end
         end
