@@ -1,0 +1,72 @@
+# frozen_string_literal: true
+
+module ActiveRecord
+  module Framing
+    # FrameClause stores frame Relations and their bind values together,
+    # similar to how WhereClause stores predicates and binds.
+    # This allows ActiveRecord's built-in Merger to properly propagate
+    # both the frame Relations and their bind values through the relation chain.
+    class FrameClause
+      attr_reader :frames
+
+      def initialize(frames = {}, cached_binds = nil)
+        # frames is a hash of {table_name => Relation}
+        @frames = frames.freeze
+        # Cache the binds to avoid recompiling after to_arel_ctes is called
+        @cached_binds = cached_binds
+      end
+
+      def empty?
+        frames.empty?
+      end
+
+      def any?
+        !empty?
+      end
+
+      # Merge another FrameClause into this one
+      def merge(other)
+        return self if other.empty?
+        return other if empty?
+
+        # Combine binds from both clauses
+        combined_binds = binds + other.binds
+        FrameClause.new(frames.merge(other.frames), combined_binds)
+      end
+
+      # Combine two FrameClauses (used by spawn)
+      def +(other)
+        merge(other)
+      end
+
+      # Get all bound_attributes from the frame Relations
+      # IMPORTANT: Cache this before calling to_arel_ctes because
+      # compiling relations consumes their bound_attributes
+      def binds
+        @cached_binds ||= frames.values.flat_map(&:bound_attributes)
+      end
+
+      # Compile frames to Arel CTE nodes
+      # IMPORTANT: This should only be called once, right before query execution
+      # After this is called, the Relations' bound_attributes will be consumed
+      def to_arel_ctes
+        frames.map do |table_name, relation|
+          # Get the arel_table from the relation
+          cte_table = relation.arel_table
+          # Compile the relation to Arel
+          cte_arel = relation.arel
+          # Create the CTE node
+          Arel::Nodes::As.new(cte_table, cte_arel)
+        end
+      end
+
+      def ==(other)
+        other.is_a?(FrameClause) && frames == other.frames
+      end
+
+      def hash
+        frames.hash
+      end
+    end
+  end
+end

@@ -1,5 +1,6 @@
 require 'rails/railtie'
 require 'active_record/framing/core_extension'
+require 'active_record/framing/frame_clause'
 require 'active_record/framing/query_methods'
 require 'active_record/framing/spawn_methods'
 require 'active_record/framing/attribute_methods'

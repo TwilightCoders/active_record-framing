@@ -2,16 +2,17 @@ module ActiveRecord
   module Framing
     module QueryMethods
       FROZEN_EMPTY_HASH = {}.freeze
+      FROZEN_EMPTY_FRAME_CLAUSE = ActiveRecord::Framing::FrameClause.new.freeze
 
-      # Note: The @values key is :frames (plural) to avoid conflicts with the frame() method,
-      # but the accessor is frame_values (singular) to match Rails naming conventions.
-      def frame_values
-        @values.fetch(:frames, FROZEN_EMPTY_HASH)
+      # Define frame_clause accessor (following the WhereClause pattern)
+      # The @values key is :frame to match the clause naming convention
+      def frame_clause
+        @values.fetch(:frame, FROZEN_EMPTY_FRAME_CLAUSE)
       end
 
-      def frame_values=(value)
+      def frame_clause=(value)
         assert_mutability!
-        @values[:frames] = value
+        @values[:frame] = value
       end
 
       def reframe_values

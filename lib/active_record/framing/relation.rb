@@ -17,26 +17,18 @@ module ActiveRecord
       def build_arel(*)
         @klass.reframe_values = reframe_values
 
-        # IMPORTANT: Collect bound_attributes from frame Relations BEFORE compiling them
-        # because compiling consumes the binds
-        unless ignore_default_frame?
-          @cached_frame_binds = frame_values.values.flat_map(&:bound_attributes)
-        end
-
         super.tap do |ar|
           unless ignore_default_frame?
             build_frames(ar)
 
+            # IMPORTANT: Cache binds BEFORE compiling to Arel
+            # because calling .arel on relations consumes their bound_attributes
+            # The FrameClause.binds method caches on first call
+            frame_clause.binds unless frame_clause.empty?
+
             # Compile frame Relations to Arel CTEs at the last moment
-            if frame_values.any?
-              frame_ctes = frame_values.map do |table_name, relation|
-                # Get the arel_table from the relation or create one
-                cte_table = relation.arel_table
-                # Compile the relation to Arel now
-                cte_arel = relation.arel
-                # Create the CTE node
-                Arel::Nodes::As.new(cte_table, cte_arel)
-              end
+            if frame_clause.any?
+              frame_ctes = frame_clause.to_arel_ctes
               ar.with(*frame_ctes)
             end
           end
@@ -109,7 +101,7 @@ module ActiveRecord
         end
 
         reframe_values_copy.each do |assoc_name, relation|
-          relation.frame_values.each do |frame_name, frame_relation|
+          relation.frame_clause.frames.each do |frame_name, frame_relation|
             # frame_relation is now a Relation object
             # Get the table name from the relation's klass
             table_name = frame_relation.klass.table_name
@@ -160,13 +152,12 @@ module ActiveRecord
       # Override bound_attributes to include bind values from frame Relations.
       # Frame bind values must come first because the CTE is defined first in the SQL.
       def bound_attributes
-        frame_binds = @cached_frame_binds || []
-
-        if frame_binds.empty?
+        if ignore_default_frame? || frame_clause.empty?
           super
         else
           # Prepend frame binds to the regular bound_attributes
-          frame_binds + super
+          # The FrameClause caches binds on first call to avoid recompiling relations
+          frame_clause.binds + super
         end
       end
 

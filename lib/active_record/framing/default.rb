@@ -78,11 +78,13 @@ module ActiveRecord
             collection.merge!(frame_relation || base_rel)
           end
 
-          # Store the Relation object itself, not the compiled Arel
+          # Store the Relation object itself in a FrameClause
           # This keeps bind values with the relation until the last possible moment
           frame_relation_hash = {arel_table.name => cte_relation}
+          frame_clause = FrameClause.new(frame_relation_hash)
 
-          relation_without_type_condition.frame!(frame_relation_hash).tap do |rel|
+          relation_without_type_condition.tap do |rel|
+            rel.frame_clause = frame_clause
             rel.table = arel_table
             extension = Module.new(&block) if block_given?
             rel.extending!(extension) if extension

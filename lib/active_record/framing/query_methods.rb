@@ -10,8 +10,9 @@ module ActiveRecord
 
       def frame!(frame_relations)
         # frame_relations is a hash of {table_name => Relation}
-        # Store the Relation objects to compile later
-        self.frame_values = self.frame_values.merge(frame_relations)
+        # Create a new FrameClause and merge it with the existing one
+        new_clause = FrameClause.new(frame_relations)
+        self.frame_clause = frame_clause.merge(new_clause)
         self
       end
 
@@ -21,7 +22,8 @@ module ActiveRecord
         cte = \
           case value
           when ::ActiveRecord::Relation
-            value.frame_values
+            # Extract the frames hash from the FrameClause
+            value.frame_clause.frames
           when Arel::Nodes::As
             {value.left.name => value}
           when String

@@ -1,18 +1,19 @@
 module ActiveRecord
   module Framing
     module QueryMethods
-      # Note: The @values key is :frames (plural) to avoid conflicts with the frame() method,
-      # but the accessor is frame_values (singular) to match Rails naming conventions.
+      # Define frame_clause accessor (following the WhereClause pattern)
+      # The @values key is :frame to match the clause naming convention
 
-      define_method(:frame_values) do
-        @values[:frames] || ::ActiveRecord::QueryMethods::FROZEN_EMPTY_HASH
+      define_method(:frame_clause) do
+        @values[:frame] || ActiveRecord::Framing::FrameClause.new
       end
 
-      define_method(:frame_values=) do |values|
+      define_method(:frame_clause=) do |value|
         assert_mutability!
-        @values[:frames] = values
+        @values[:frame] = value
       end
 
+      # Keep reframe as a simple hash for now
       define_method(:reframe_values) do
         @values[:reframe] || ::ActiveRecord::QueryMethods::FROZEN_EMPTY_HASH
       end
