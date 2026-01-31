@@ -22,16 +22,6 @@ module ActiveRecord
         assert_mutability!
         @values[:reframe] = value
       end
-
-      # Bind values accessor for frame CTEs
-      def frame_bind_values
-        @values.fetch(:frame_bind, FROZEN_EMPTY_HASH)
-      end
-
-      def frame_bind_values=(value)
-        assert_mutability!
-        @values[:frame_bind] = value
-      end
     end
   end
 end

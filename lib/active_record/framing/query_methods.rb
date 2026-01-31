@@ -8,9 +8,10 @@ module ActiveRecord
         spawn.frame!(frame_cte_for(value))
       end
 
-      def frame!(cte, binds = nil)
-        self.frame_values = self.frame_values.merge(cte)
-        self.frame_bind_values = self.frame_bind_values.merge(binds) if binds
+      def frame!(frame_relations)
+        # frame_relations is a hash of {table_name => Relation}
+        # Store the Relation objects to compile later
+        self.frame_values = self.frame_values.merge(frame_relations)
         self
       end
 

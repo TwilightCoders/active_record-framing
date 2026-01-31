@@ -78,22 +78,11 @@ module ActiveRecord
             collection.merge!(frame_relation || base_rel)
           end
 
-          # Create the CTE and capture bind values
-          # Get the Arel AST first
-          arel_ast = cte_relation.arel
+          # Store the Relation object itself, not the compiled Arel
+          # This keeps bind values with the relation until the last possible moment
+          frame_relation_hash = {arel_table.name => cte_relation}
 
-          # In Rails 5.0+, we need to collect binds from bound_attributes
-          collected_binds = []
-          if cte_relation.respond_to?(:bound_attributes)
-            collected_binds = cte_relation.bound_attributes
-          elsif cte_relation.respond_to?(:bind_values)
-            collected_binds = cte_relation.bind_values
-          end
-
-          binds = {arel_table.name => collected_binds}
-          cte = {arel_table.name => Arel::Nodes::As.new(arel_table, arel_ast)}
-
-          relation_without_type_condition.frame!(cte, binds).tap do |rel|
+          relation_without_type_condition.frame!(frame_relation_hash).tap do |rel|
             rel.table = arel_table
             extension = Module.new(&block) if block_given?
             rel.extending!(extension) if extension

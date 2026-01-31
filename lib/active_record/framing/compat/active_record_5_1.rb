@@ -20,17 +20,8 @@ module ActiveRecord
         set_value(:reframe, value)
       end
 
-      define_method(:frame_bind_values) do
-        get_value(:frame_bind)
-      end
-
-      define_method(:frame_bind_values=) do |value|
-        set_value(:frame_bind, value)
-      end
-
       ::ActiveRecord::QueryMethods::DEFAULT_VALUES[:frames] = ::ActiveRecord::QueryMethods::FROZEN_EMPTY_HASH
       ::ActiveRecord::QueryMethods::DEFAULT_VALUES[:reframe] = ::ActiveRecord::QueryMethods::FROZEN_EMPTY_HASH
-      ::ActiveRecord::QueryMethods::DEFAULT_VALUES[:frame_bind] = ::ActiveRecord::QueryMethods::FROZEN_EMPTY_HASH
     end
   end
 end
