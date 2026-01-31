@@ -52,6 +52,14 @@ module ActiveRecord
           self.ignore_default_frame = false
         end
 
+        # Scopes (defualts) should be built/considered
+        # without the default frame (they're combined later)
+        def evaluate_default_scope(*)
+          evaluate_default_frame do
+            super
+          end
+        end
+
         def default_arel_table
           @default_arel_table ||= arel_table.dup.tap do |at|
             at.name = sovereign_table_name
@@ -70,15 +78,10 @@ module ActiveRecord
             collection.merge!(frame_relation || base_rel)
           end
 
-          # This turns off the STI condition clause outside of the frames
-          # doit = finder_needs_type_condition? # gotta call this to init instance variable
-          # orig, @finder_needs_type_condition = @finder_needs_type_condition, :false
-          ignore_type_condition do
-            relation.frame!(Arel::Nodes::As.new(arel_table, cte_relation.arel)).tap do |rel|
-              rel.table = arel_table
-              extension = Module.new(&block) if block_given?
-              rel.extending!(extension) if extension
-            end
+          relation_without_type_condition.frame!(arel_table.name => Arel::Nodes::As.new(arel_table, cte_relation.arel)).tap do |rel|
+            rel.table = arel_table
+            extension = Module.new(&block) if block_given?
+            rel.extending!(extension) if extension
           end
         end
 

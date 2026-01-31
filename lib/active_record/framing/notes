@@ -1,0 +1,5 @@
+- Unscoped on a named frame needs to reset table name
+  -  Admin::Special.unscoped.to_sql
+- Unframed doesn't actually remove the frame
+- default_scope (including type_condition) to be expressed in all frames (default/named)
+  - When unframed, apply default_scope to query

@@ -12,9 +12,18 @@ describe 'Model Inheritance' do
         expect(subject).to match_sql(<<~SQL)
           WITH "users" AS
             (SELECT "users".* FROM "users" WHERE \\("users"."kind" IS NOT NULL|"users"."kind" = 2|\\("users"."type" \\(IN|=\\) (?'Admin')?\\)| AND \\)+)
-          SELECT "users".* FROM "users"
+          SELECT "users".id, "users".kind, "users".type FROM "users" WHERE "users".kind = 2
         SQL
       end
+
+      # Ultimate version
+      # it 'should not repeat inheritance scope' do
+      #   expect(subject).to match_sql(<<~SQL)
+      #     WITH "admins" AS
+      #       (SELECT "users".* FROM "users" WHERE \\("users"."kind" IS NOT NULL|"users"."kind" = 2|\\("users"."type" \\(IN|=\\) (?'Admin')?\\)| AND \\)+)
+      #     SELECT "admins".id, "admins".kind, "admins".type FROM "admins" WHERE "admins".kind = 2
+      #   SQL
+      # end
     end
 
     context 'named frames' do

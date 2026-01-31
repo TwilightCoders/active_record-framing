@@ -19,12 +19,12 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ['lib']
 
-  rails_versions = '>= 4.2'
+  rails_versions = '~> 5.0.0'
   spec.required_ruby_version = '>= 2.3'
 
   spec.add_runtime_dependency 'activerecord', rails_versions
 
-  spec.add_development_dependency 'pg'
+  spec.add_development_dependency 'pg', '~> 0.21'
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'rspec'
   spec.add_development_dependency 'combustion'

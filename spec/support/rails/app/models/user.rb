@@ -4,12 +4,11 @@ class User < ::ActiveRecord::Base
   has_many :comments
 
   default_scope {
-    where.not(kind: nil)
+    where(kind: 1)
   }
 
   default_frame {
-    where(kind: 1)
-    # where(kind: 1)
+    where.not(kind: nil)
   }
 
   frame :all, -> {}

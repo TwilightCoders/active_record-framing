@@ -7,7 +7,10 @@ module ActiveRecord
 
       def initialize(*args)
         super.tap do |something|
-          @klass = ModelProxy.new(@klass, arel_table) unless @klass.class == ModelProxy
+          unless @klass.class == ModelProxy
+            @klass = ModelProxy.new(@klass, arel_table)
+            @table = arel_table
+          end
         end
       end
 
@@ -62,8 +65,13 @@ module ActiveRecord
       def build_frames(manager)
         # NOTE: We cannot early exclude associations because some associations are different from their table names
         # TODO: cache known associations, (renable warning)
+        reframe_values_copy = reframe_values.dup
         assocs = klass.reflect_on_all_associations.inject(Hash.new) do |assocs, assoc|
           begin
+            if (reframe_value = reframe_values_copy.delete(assoc.name))
+              puts "Fixed reframe_value #{assoc.name} to #{assoc.klass.table_name}"
+              reframe_values_copy[assoc.klass.table_name] = reframe_value
+            end
             assocs[assoc.name] = assoc
           rescue NameError => e
             # warn <<~WARN.chomp
@@ -77,26 +85,62 @@ module ActiveRecord
         end
 
         manager.join_sources.each do |join_source|
+          # binding.pry
           next unless join_source&.left&.respond_to?(:name)
-          table = join_source.left
-          if (join_class = derive_engine(table, assocs))
-            frame!(join_class)
+          source_table = join_source.left
+          if (join_class = derive_engine(source_table, assocs))
+            # binding.pry
+            reframe_source = reframe_values_copy.fetch(join_class.table_name) { join_class.all }
+            reframe_cte = frame_cte_for(reframe_source)
+            frame!(reframe_cte)
+            fix_right_side(join_source.right, reframe_source.arel_table, source_table) if reframe_source
           end
         end
 
-        reframe_values.each do |assoc_name, relation|
-          relation.frames_values.values.each do |value|
-            original = frames_values.delete(value.left.engine.table_name)
-            frame!(value)
+        reframe_values_copy.each do |assoc_name, relation|
+          relation.frames_values.each do |frame_name, value|
+            # binding.pry
+            original = reframe_values_copy.fetch(value.left.engine.table_name, {})
+            frame!(frame_name => value)
           end
         end
       end
 
-      def derive_engine(table, associations)
-        if table.engine == ::ActiveRecord::Base
-          associations[table.name]
+      def derive_engine(source_table, associations)
+        if source_table.engine == ::ActiveRecord::Base
+          associations[source_table.name]
         else
-          table.engine
+          source_table.engine
+        end
+      end
+
+      def fix_right_side(arel, from_table, to_table)
+        case arel
+        when Arel::Nodes::On, Arel::Nodes::Grouping
+          fix_right_side(arel.expr, from_table, to_table)
+        when Arel::Nodes::And
+          fix_right_side(arel.children, from_table, to_table)
+        when Array
+          arel.each do |a1|
+            fix_right_side(a1, from_table, to_table)
+          end
+        when Arel::Nodes::Binary
+          fix_right_side(arel.left, from_table, to_table)
+          fix_right_side(arel.right, from_table, to_table)
+        when Arel::Nodes::Casted
+          fix_right_side(arel.attribute, from_table, to_table)
+        when Arel::Attributes::Attribute
+          if arel.relation.name == from_table.name
+            arel.relation = to_table
+          else
+            warn "#{arel.relation.name} != #{from_table.name} for #{arel.name}"
+          end
+        when Arel::Nodes::BindParam
+          # Nothing (must come before Arel::Nodes::Node)
+        when Arel::Nodes::Node
+          fix_right_side(arel.value, from_table, to_table)
+        else
+          # No Op
         end
       end
 

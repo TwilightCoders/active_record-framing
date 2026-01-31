@@ -88,6 +88,8 @@ User::Admin.all.to_sql
 
 After checking out the repo, run `bundle` to install dependencies. Then, run `bundle exec rspec` to run the tests.
 
+
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/TwilightCoders/active_record-framing. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
