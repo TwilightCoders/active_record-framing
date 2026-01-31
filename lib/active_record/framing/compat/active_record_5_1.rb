@@ -1,18 +1,36 @@
 module ActiveRecord
   module Framing
     module QueryMethods
-      {
-        frames: ::ActiveRecord::QueryMethods::FROZEN_EMPTY_HASH,
-        reframe: ::ActiveRecord::QueryMethods::FROZEN_EMPTY_HASH
-      }.each do |value_name, default_value|
-        define_method("#{value_name}_values") do
-          get_value(value_name)
-        end
-        define_method("#{value_name}_values=") do |value|
-          set_value(value_name, value)
-        end
-        ::ActiveRecord::QueryMethods::DEFAULT_VALUES[value_name] = default_value
+      # Note: The @values key is :frames (plural) to avoid conflicts with the frame() method,
+      # but the accessor is frame_values (singular) to match Rails naming conventions.
+
+      define_method(:frame_values) do
+        get_value(:frames)
       end
+
+      define_method(:frame_values=) do |value|
+        set_value(:frames, value)
+      end
+
+      define_method(:reframe_values) do
+        get_value(:reframe)
+      end
+
+      define_method(:reframe_values=) do |value|
+        set_value(:reframe, value)
+      end
+
+      define_method(:frame_bind_values) do
+        get_value(:frame_bind)
+      end
+
+      define_method(:frame_bind_values=) do |value|
+        set_value(:frame_bind, value)
+      end
+
+      ::ActiveRecord::QueryMethods::DEFAULT_VALUES[:frames] = ::ActiveRecord::QueryMethods::FROZEN_EMPTY_HASH
+      ::ActiveRecord::QueryMethods::DEFAULT_VALUES[:reframe] = ::ActiveRecord::QueryMethods::FROZEN_EMPTY_HASH
+      ::ActiveRecord::QueryMethods::DEFAULT_VALUES[:frame_bind] = ::ActiveRecord::QueryMethods::FROZEN_EMPTY_HASH
     end
   end
 end

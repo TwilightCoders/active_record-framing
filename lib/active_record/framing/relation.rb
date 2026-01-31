@@ -16,10 +16,11 @@ module ActiveRecord
 
       def build_arel(*)
         @klass.reframe_values = reframe_values
+
         super.tap do |ar|
           unless ignore_default_frame?
             build_frames(ar)
-            ar.with(*frames_values.values) if frames_values.any?
+            ar.with(*frame_values.values) if frame_values.any?
           end
         end
       end
@@ -90,7 +91,7 @@ module ActiveRecord
         end
 
         reframe_values_copy.each do |assoc_name, relation|
-          relation.frames_values.each do |frame_name, value|
+          relation.frame_values.each do |frame_name, value|
             original = reframe_values_copy.fetch(value.left.engine.table_name, {})
             frame!(frame_name => value)
           end
@@ -132,6 +133,22 @@ module ActiveRecord
           fix_right_side(arel.value, from_table, to_table)
         else
           # No Op
+        end
+      end
+
+      # Override bound_attributes to include frame bind values.
+      # Frame bind values must come first because the CTE is defined first in the SQL.
+      def bound_attributes
+        frame_bind_hash = @values.fetch(:frame_bind, {})
+
+        if frame_bind_hash.empty?
+          super
+        else
+          # Collect all frame bind values (order matters - matches CTE definition order)
+          frame_binds = frame_bind_hash.values.flatten
+
+          # Prepend frame binds to the regular bound_attributes
+          frame_binds + super
         end
       end
 

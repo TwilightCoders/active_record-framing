@@ -8,8 +8,9 @@ module ActiveRecord
         spawn.frame!(frame_cte_for(value))
       end
 
-      def frame!(cte)
-        self.frames_values = self.frames_values.merge(cte)
+      def frame!(cte, binds = nil)
+        self.frame_values = self.frame_values.merge(cte)
+        self.frame_bind_values = self.frame_bind_values.merge(binds) if binds
         self
       end
 
@@ -19,7 +20,7 @@ module ActiveRecord
         cte = \
           case value
           when ::ActiveRecord::Relation
-            value.frames_values
+            value.frame_values
           when Arel::Nodes::As
             {value.left.name => value}
           when String

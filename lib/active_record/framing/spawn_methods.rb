@@ -4,7 +4,8 @@ module ActiveRecord
 
       def merge!(other) # :nodoc:
         super.tap do |rel|
-          rel.frames_values = rel.frames_values.merge(other.frames_values)
+          rel.frame_values = rel.frame_values.merge(other.frame_values)
+          rel.frame_bind_values = rel.frame_bind_values.merge(other.frame_bind_values)
         end
       end
 
