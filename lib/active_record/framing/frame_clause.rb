@@ -2,20 +2,22 @@
 
 module ActiveRecord
   module Framing
-    # FrameClause stores frame Relations and their bind values together,
-    # similar to how WhereClause stores predicates and binds.
-    # This allows ActiveRecord's built-in Merger to properly propagate
-    # both the frame Relations and their bind values through the relation chain.
+    # FrameClause stores frame Relations, similar to how WhereClause stores predicates.
+    # This allows ActiveRecord's built-in Merger to properly propagate frame Relations
+    # through the relation chain.
+    #
+    # IMPORTANT: Unlike WHERE clause subqueries (which extract binds via PredicateBuilder),
+    # CTEs added via ar.with() don't have automatic bind extraction. We must cache
+    # bound_attributes from frame Relations BEFORE compiling to Arel, because once
+    # compiled, the Arel tree has BindParam nodes but no connection to actual bind values.
     class FrameClause
       attr_reader :frames
 
-      def initialize(frames = {}, cached_binds = nil, prepared_statements = nil)
+      def initialize(frames = {})
         # frames is a hash of {table_name => Relation}
         @frames = frames.freeze
-        # Cache the binds to avoid recompiling after to_arel_ctes is called
-        @cached_binds = cached_binds
-        # Track if prepared statements are enabled
-        @prepared_statements = prepared_statements
+        # Binds cached from frame Relations (populated by binds method)
+        @cached_binds = nil
       end
 
       def empty?
@@ -31,11 +33,7 @@ module ActiveRecord
         return self if other.empty?
         return other if empty?
 
-        # Combine binds from both clauses
-        combined_binds = binds + other.binds
-        # Preserve prepared_statements setting
-        ps = @prepared_statements.nil? ? other.instance_variable_get(:@prepared_statements) : @prepared_statements
-        FrameClause.new(frames.merge(other.frames), combined_binds, ps)
+        FrameClause.new(frames.merge(other.frames))
       end
 
       # Combine two FrameClauses (used by spawn)
@@ -43,50 +41,36 @@ module ActiveRecord
         merge(other)
       end
 
-      # Get all bound_attributes from the frame Relations
-      # IMPORTANT: Cache this before calling to_arel_ctes because
-      # compiling relations consumes their bound_attributes
-      # When prepared_statements are disabled, return empty array because
-      # binds are substituted into SQL instead
+      # Get bind values from frame Relations
+      # MUST be called BEFORE to_arel_ctes to cache binds before Relations are compiled
+      # Returns empty array if binds were substituted into SQL (prepared_statements=false)
       def binds
-        # Check if we know prepared_statements status
-        if @prepared_statements == false
-          # Binds already substituted into SQL, don't return them
-          []
-        else
-          # Cache and return binds for prepared statements
-          @cached_binds ||= frames.values.flat_map(&:bound_attributes)
-        end
+        return [] if @binds_substituted
+        @cached_binds ||= frames.values.flat_map(&:bound_attributes)
       end
 
       # Compile frames to Arel CTE nodes
-      # IMPORTANT: This should only be called once, right before query execution
-      # After this is called, the Relations' bound_attributes will be consumed
+      # When prepared_statements=false, substitutes bind values into SQL instead of
+      # using BindParam nodes, because ActiveRecord discards binds in that mode.
       def to_arel_ctes
         # Detect prepared_statements setting from first relation
         first_relation = frames.values.first
         use_prepared_statements = first_relation ? first_relation.klass.connection.prepared_statements : true
 
-        # Store for binds method
-        @prepared_statements = use_prepared_statements
+        @binds_substituted = !use_prepared_statements
 
         frames.map do |table_name, relation|
-          # Get the arel_table from the relation
           cte_table = relation.arel_table
 
-          # Check if prepared statements are disabled
-          # When disabled, we need to substitute bind values into SQL
-          if use_prepared_statements == false
-            # Convert relation to SQL with bind substitution
-            cte_sql = relation.to_sql
-            # Create Arel node from SQL literal
-            cte_arel = Arel::Nodes::SqlLiteral.new("(#{cte_sql})")
-          else
-            # With prepared statements enabled, use standard Arel compilation
+          if use_prepared_statements
+            # Standard mode: Arel tree with BindParam nodes
             cte_arel = relation.arel
+          else
+            # Prepared statements disabled: substitute binds into SQL
+            cte_sql = relation.to_sql
+            cte_arel = Arel::Nodes::SqlLiteral.new("(#{cte_sql})")
           end
 
-          # Create the CTE node
           Arel::Nodes::As.new(cte_table, cte_arel)
         end
       end

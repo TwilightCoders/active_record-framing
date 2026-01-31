@@ -21,13 +21,15 @@ module ActiveRecord
           unless ignore_default_frame?
             build_frames(ar)
 
-            # IMPORTANT: Cache binds BEFORE compiling to Arel
-            # because calling .arel on relations consumes their bound_attributes
-            # The FrameClause.binds method caches on first call
-            frame_clause.binds unless frame_clause.empty?
-
-            # Compile frame Relations to Arel CTEs at the last moment
             if frame_clause.any?
+              # IMPORTANT: Cache binds BEFORE compiling to Arel
+              # Unlike WHERE clause subqueries (which use PredicateBuilder to extract binds),
+              # CTEs don't have automatic bind extraction. We must cache bound_attributes
+              # from Relations before converting to Arel, because Arel nodes don't retain
+              # the connection to bound_attributes.
+              frame_clause.binds
+
+              # Compile frame Relations to Arel CTEs
               frame_ctes = frame_clause.to_arel_ctes
               ar.with(*frame_ctes)
             end
@@ -149,14 +151,14 @@ module ActiveRecord
         end
       end
 
-      # Override bound_attributes to include bind values from frame Relations.
-      # Frame bind values must come first because the CTE is defined first in the SQL.
+      # Override bound_attributes to include frame bind values
+      # Frame binds must come first because CTEs are defined before the main query
+      # When prepared_statements=false, returns empty array because binds are already
+      # substituted into CTE SQL (frame_clause.binds returns [])
       def bound_attributes
         if ignore_default_frame? || frame_clause.empty?
           super
         else
-          # Prepend frame binds to the regular bound_attributes
-          # The FrameClause caches binds on first call to avoid recompiling relations
           frame_clause.binds + super
         end
       end
