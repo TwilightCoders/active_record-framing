@@ -76,3 +76,13 @@ Thumbs.db
 /Gemfile.lock
 /coverage
 /.editorconfig
+
+# Test artifacts
+/spec/results.txt
+/spec/support/rails/active_record-framing-test
+
+# Qlty
+/.qlty/logs
+/.qlty/out
+/.qlty/results
+/.qlty/plugin_cachedir
