@@ -10,7 +10,6 @@ module ActiveRecord
       def unscoped
         super.tap do |rel|
           rel.instance_variable_set(:@table, @table)
-          # rel.table = @table
         end
       end
 
@@ -22,10 +21,7 @@ module ActiveRecord
       end
 
       def scope_for_association(scope = __getobj__.relation)
-        super.tap do |rel|
-          binding.pry
-          puts "foo"
-        end
+        super
       end
 
       def table=(value)
@@ -51,11 +47,6 @@ module ActiveRecord
       def arel_table
         @table
       end
-
-      # Might not need this
-      # def is_a?(obj)
-      #   __getobj__.is_a?(obj)
-      # end
     end
   end
 end

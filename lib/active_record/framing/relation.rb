@@ -69,27 +69,19 @@ module ActiveRecord
         assocs = klass.reflect_on_all_associations.inject(Hash.new) do |assocs, assoc|
           begin
             if (reframe_value = reframe_values_copy.delete(assoc.name))
-              puts "Fixed reframe_value #{assoc.name} to #{assoc.klass.table_name}"
               reframe_values_copy[assoc.klass.table_name] = reframe_value
             end
             assocs[assoc.name] = assoc
           rescue NameError => e
-            # warn <<~WARN.chomp
-            #   ActiveRecord::Framing was trying to inspect the association #{assoc.name}
-            #     on the #{assoc.active_record.name} model but seems there is an issue
-            #     locating the model backing it.
-            #     Error: #{e.message}
-            # WARN
+            # Silently skip associations that can't be resolved
           end
           assocs
         end
 
         manager.join_sources.each do |join_source|
-          # binding.pry
           next unless join_source&.left&.respond_to?(:name)
           source_table = join_source.left
           if (join_class = derive_engine(source_table, assocs))
-            # binding.pry
             reframe_source = reframe_values_copy.fetch(join_class.table_name) { join_class.all }
             reframe_cte = frame_cte_for(reframe_source)
             frame!(reframe_cte)
@@ -99,7 +91,6 @@ module ActiveRecord
 
         reframe_values_copy.each do |assoc_name, relation|
           relation.frames_values.each do |frame_name, value|
-            # binding.pry
             original = reframe_values_copy.fetch(value.left.engine.table_name, {})
             frame!(frame_name => value)
           end

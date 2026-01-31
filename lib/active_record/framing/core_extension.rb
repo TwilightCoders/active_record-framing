@@ -94,20 +94,14 @@ module ActiveRecord
         @registry = Hash.new { |hash, key| hash[key] = {} }
       end
 
-      # Obtains the value for a given +frame_type+ and +model+.
-      # def value_for(frame_type, model)
-      #   raise_invalid_frame_type!(frame_type)
-      #   return @registry[frame_type][model]# if skip_inherited_frame
-      # end
-
       # Obtains the value for a given +scope_type+ and +model+.
+      # Walks up the class hierarchy if skip_inherited_frame is false.
       def value_for(frame_type, model, skip_inherited_frame = false)
         raise_invalid_frame_type!(frame_type)
         return @registry[frame_type][model] if skip_inherited_frame
         base = model.base_class
         while model <= base
           value = @registry[frame_type][model]
-          # puts "Checking #{model.name} <= #{base.name} = #{value}"
           return value if value
           model = model.superclass
         end
