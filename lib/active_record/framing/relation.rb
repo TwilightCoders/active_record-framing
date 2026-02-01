@@ -64,7 +64,21 @@ module ActiveRecord
       end
 
       def aggregate_column(column_name)
-        framing { super }
+        # When we have a frame, we need to use the frame table for aggregations
+        # Otherwise COUNT(DISTINCT "documents"."id") will reference the wrong table
+        # when the FROM clause uses "deleted/documents"
+        framing do
+          column = super
+
+          # If we have a frame and super returned an Arel attribute,
+          # replace its relation with the frame table
+          if frame_clause.any? && @table && column.is_a?(Arel::Attributes::Attribute)
+            # Create a new attribute with the same name but on the frame table
+            Arel::Attributes::Attribute.new(@table, column.name)
+          else
+            column
+          end
+        end
       end
 
       def build_joins(*)
