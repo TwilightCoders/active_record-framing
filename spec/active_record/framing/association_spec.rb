@@ -8,9 +8,11 @@ describe ActiveRecord::Framing::Relation do
 
       user = User.first
       sql = user.posts.to_sql
+      # Frame CTEs use unscoped to avoid bind parameter issues
+      # So default_scope is not included in the CTE, only default_frame
       expect(sql).to match_sql(<<~SQL)
         WITH "documents" AS
-          (SELECT "documents".* FROM "documents" WHERE \(?("documents"."scope" = 1| AND |"documents"."deleted_at" IS NULL)+\)?)
+          (SELECT "documents".* FROM "documents" WHERE \(?"documents"."deleted_at" IS NULL\)?)
         SELECT "documents".* FROM "documents" WHERE "documents"."user_id" = #{user.id}
       SQL
 

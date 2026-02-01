@@ -255,7 +255,10 @@ module ActiveRecord
 
         # Merge any WHERE conditions from the current relation
         # (conditions added after the frame was applied)
-        relation = relation.where(where_clause) if where_clause.any?
+        if where_clause.any?
+          # Spawn a new relation with the merged where clause
+          relation = relation.spawn.tap { |r| r.where_clause = r.where_clause.merge(where_clause) }
+        end
 
         relation
       end
