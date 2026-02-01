@@ -163,7 +163,9 @@ module ActiveRecord
         when Arel::Nodes::Casted
           fix_right_side(arel.attribute, from_table, to_table)
         when Arel::Attributes::Attribute
-          if arel.relation.name == from_table.name
+          # Check if this attribute references either the frame table or the base table
+          # Default scopes create attributes with base table name, so we need to handle both
+          if arel.relation.name == from_table.name || arel.relation.name == to_table.name.split('/').last
             arel.relation = to_table
           else
             warn "#{arel.relation.name} != #{from_table.name} for #{arel.name}"
