@@ -56,7 +56,20 @@ module ActiveRecord
           # The hash key is the Arel::Table with the correct CTE name
           # For named frames like User::All, cte_table.name is "all/users"
           # The relation is the CTE definition (has table="users")
-          cte_arel = relation.arel
+
+          if relation.connection.prepared_statements
+            # Use Arel AST with $1 placeholders
+            cte_arel = relation.arel
+          else
+            # For prepared_statements=false, we need to substitute binds inline
+            # Create a relation without frames to prevent nested CTEs
+            stripped = relation.spawn
+            stripped.frame_clause = FrameClause.new({})
+            # Compile to SQL with binds substituted inline
+            sql = stripped.to_sql
+            cte_arel = Arel::Nodes::SqlLiteral.new("(#{sql})")
+          end
+
           # Create the CTE node
           Arel::Nodes::As.new(cte_table, cte_arel)
         end

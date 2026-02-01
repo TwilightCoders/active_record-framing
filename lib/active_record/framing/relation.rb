@@ -169,9 +169,13 @@ module ActiveRecord
         if ignore_default_frame? || frame_clause.empty?
           super
         else
-          # Prepend frame binds to the regular bound_attributes
-          # The FrameClause caches binds on first call to avoid recompiling relations
-          frame_clause.binds + super
+          if connection.prepared_statements
+            # Include frame binds - they'll be used for $1, $2 placeholders
+            frame_clause.binds + super
+          else
+            # Don't include frame binds - they're substituted inline in to_arel_ctes
+            super
+          end
         end
       end
 
