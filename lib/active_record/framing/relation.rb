@@ -23,7 +23,7 @@ module ActiveRecord
         @klass.reframe_values = reframe_values
 
         super.tap do |ar|
-          unless ignore_default_frame?
+          unless ignore_default_frame? || ActiveRecord::Framing.disabled?
             build_frames(ar)
 
             # IMPORTANT: Cache binds BEFORE compiling to Arel
