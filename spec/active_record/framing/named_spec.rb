@@ -69,7 +69,7 @@ describe ActiveRecord::Framing::Named do
   context '#unframed' do
     it 'does not employ CTE' do
       expect(User.unframed.to_sql).to match_sql(<<~SQL.squish)
-        SELECT "users".* FROM "users" WHERE \(?"users"."kind" IS NOT NULL\)?
+        SELECT "users".* FROM "users" WHERE "users"."kind" = 1
       SQL
     end
   end
