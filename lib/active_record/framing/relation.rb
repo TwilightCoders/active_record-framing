@@ -8,8 +8,13 @@ module ActiveRecord
       def initialize(*args)
         super.tap do |something|
           unless @klass.class == ModelProxy
-            @klass = ModelProxy.new(@klass, arel_table)
-            @table = arel_table
+            # Use @table if already set (from parent relation) AND we have a frame_clause
+            # For unframed relations (no frame_clause), reset to base arel_table
+            # This ensures spawned relations preserve custom table names, but unframed resets
+            has_frames = frame_clause && !frame_clause.empty?
+            table_to_use = (has_frames && @table) ? @table : arel_table
+            @klass = ModelProxy.new(@klass, table_to_use)
+            @table = table_to_use
           end
         end
       end
@@ -47,6 +52,15 @@ module ActiveRecord
       def table=(value)
         @table = value
         @klass.table = value
+        # Update PredicateBuilder's cached table reference
+        # PredicateBuilder's @table is a TableMetadata(klass, arel_table)
+        # We need to update it with the new arel_table so WHERE clauses use the right table name
+        if @predicate_builder
+          table_metadata = ::ActiveRecord::TableMetadata.new(@klass, value)
+          @predicate_builder.instance_variable_set(:@table, table_metadata)
+        end
+        # Invalidate WhereClauseFactory so it gets recreated with updated PredicateBuilder
+        @where_clause_factory = nil
       end
 
       def aggregate_column(column_name)

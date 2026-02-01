@@ -9,7 +9,10 @@ module ActiveRecord
 
       def unscoped
         super.tap do |rel|
-          rel.instance_variable_set(:@table, @table)
+          # Reset to base table, not the custom frame table
+          # unscoped/unframed should query the base table, not the CTE table
+          base_table = __getobj__.arel_table
+          rel.instance_variable_set(:@table, base_table)
         end
       end
 
