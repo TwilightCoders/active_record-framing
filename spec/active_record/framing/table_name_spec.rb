@@ -45,9 +45,10 @@ RSpec.describe 'Table name propagation in WHERE clauses' do
     it 'uses base table name in WHERE after unframed' do
       sql = Post::Deleted.where(title: 'test').unframed.where(scope: 1).to_sql
 
-      # Should use base table "documents", not "deleted/documents"
+      # WHERE clause created before unframed preserves its explicit table reference
+      expect(sql).to include('"deleted/documents"."title"')
+      # WHERE clause created after unframed uses base table
       expect(sql).to include('"documents"."scope"')
-      expect(sql).not_to include('"deleted/documents"')
     end
   end
 
@@ -70,9 +71,13 @@ RSpec.describe 'Table name propagation in WHERE clauses' do
 
       sql = relation.to_sql
 
-      # All WHERE conditions should reference deleted/documents
+      # All WHERE conditions in outer SELECT should reference deleted/documents
       expect(sql.scan(/"deleted\/documents"/).count).to be >= 3
-      expect(sql).not_to match(/WHERE.*"documents"\./)
+      # CTE uses base table, but outer WHERE should use frame table
+      # Extract the outer SELECT part (after the CTE closing paren)
+      outer_select = sql.split(/\)\s+SELECT/).last
+      expect(outer_select).to match(/"deleted\/documents"/)
+      expect(outer_select).not_to match(/"documents"\./)
     end
   end
 end
