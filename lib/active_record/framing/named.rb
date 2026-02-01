@@ -39,7 +39,12 @@ module ActiveRecord
       end
 
       def relation_with_default_scope
-        (@relation_with_default_scope ||= unframed_all.freeze).dup # dup doesn't copy the 'frozen'
+        # Create a completely clean relation using base_class for STI children
+        # This removes default_scope, type condition, and frames
+        # Using base_class ensures type condition isn't added during frame building
+        # For STI children, use base_class to avoid type condition in CTE
+        klass_for_relation = (self < ActiveRecord::Base && base_class != self) ? base_class : self
+        klass_for_relation.unscoped.spawn
       end
 
       # def relation_with_default_scope_and_without_type_condition

@@ -84,7 +84,9 @@ module ActiveRecord
           frame_relation_hash = {arel_table => cte_relation}
           frame_clause = FrameClause.new(frame_relation_hash)
 
-          relation_without_type_condition.tap do |rel|
+          # Use relation (not relation_without_type_condition) so type condition is applied
+          # For STI, this ensures the child class's type condition is in the outer query
+          relation.spawn.tap do |rel|
             rel.frame_clause = frame_clause
             rel.table = arel_table
             extension = Module.new(&block) if block_given?
@@ -179,6 +181,7 @@ module ActiveRecord
 
         def build_default_frame(base_rel = nil)
           return if abstract_class?
+          return if ignore_default_frame?
 
           frames_to_build = if default_frame_override?
             # The user has defined their own default frame method, so call that
@@ -189,9 +192,9 @@ module ActiveRecord
 
           if frames_to_build.any?
             evaluate_default_frame do
-              # cte_table = Arel::Table.new(table_name)
               cte_table = default_arel_table
-              build_frame(frames_to_build, cte_table, base_rel || relation)
+              base = base_rel || relation
+              build_frame(frames_to_build, cte_table, base)
             end
           end
         end
