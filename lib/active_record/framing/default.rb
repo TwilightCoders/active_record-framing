@@ -34,7 +34,11 @@ module ActiveRecord
         #     Post.limit(10) # Fires "SELECT * FROM posts LIMIT 10"
         #   }
         def unframed
-          block_given? ? unframed_all.framing { yield } : unframed_all
+          result = block_given? ? unframed_all.framing { yield } : unframed_all
+          # Clear frame_clause and reset table to base arel_table
+          result.frame_clause = FrameClause.new({})
+          result.table = arel_table
+          result
         end
 
         def ignore_default_frame?
