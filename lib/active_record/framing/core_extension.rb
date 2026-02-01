@@ -109,6 +109,7 @@ module ActiveRecord
           return value if value
           model = model.superclass
         end
+        nil
       end
 
       # Sets the +value+ for a given +frame_type+ and +model+.
