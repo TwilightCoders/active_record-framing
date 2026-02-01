@@ -203,7 +203,7 @@ module ActiveRecord
           if frames_to_build.any?
             evaluate_default_frame do
               cte_table = default_arel_table
-              base = base_rel || relation
+              base = base_rel || relation_with_default_scope
               build_frame(frames_to_build, cte_table, base)
             end
           end
