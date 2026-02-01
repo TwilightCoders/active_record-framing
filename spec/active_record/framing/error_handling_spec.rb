@@ -7,7 +7,7 @@ describe 'Error Handling' do
     it 'raises on invalid frame name with special characters' do
       expect {
         User.frame :'invalid-name-with-dashes', -> {}
-      }.to raise_error(NameError, /invalid/)
+      }.to raise_error(NameError, /wrong constant name/)
     end
 
     it 'raises on frame name starting with number' do
@@ -17,13 +17,12 @@ describe 'Error Handling' do
     end
 
     it 'raises on frame name that conflicts with ActiveRecord methods' do
+      # If no validation exists, this is a potential bug to note
+      pending("No validation for reserved method names - should add this")
       # These would be dangerous
       expect {
         User.frame :find, -> {}
       }.to raise_error(ArgumentError, /reserved|conflict/)
-    rescue => e
-      # If no validation exists, this is a potential bug to note
-      pending("No validation for reserved method names - should add this")
     end
 
   end
