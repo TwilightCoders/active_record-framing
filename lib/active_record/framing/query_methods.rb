@@ -9,7 +9,7 @@ module ActiveRecord
       end
 
       def frame!(frame_relations)
-        # frame_relations is a hash of {table_name => Relation}
+        # frame_relations is a hash of {arel_table => Relation}
         # Create a new FrameClause and merge it with the existing one
         new_clause = FrameClause.new(frame_relations)
         self.frame_clause = frame_clause.merge(new_clause)
@@ -25,9 +25,11 @@ module ActiveRecord
             # Extract the frames hash from the FrameClause
             value.frame_clause.frames
           when Arel::Nodes::As
-            {value.left.name => value}
+            # Use the CTE's arel_table (left side of AS) as the key
+            {value.left => value}
           when String
-            {arel_table.name => value}
+            # For string values, use arel_table as key
+            {arel_table => value}
           when Hash
             value
           else

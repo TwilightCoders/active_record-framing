@@ -80,7 +80,8 @@ module ActiveRecord
 
           # Store the Relation object itself in a FrameClause
           # This keeps bind values with the relation until the last possible moment
-          frame_relation_hash = {arel_table.name => cte_relation}
+          # Use the arel_table object as the hash key (not its name string)
+          frame_relation_hash = {arel_table => cte_relation}
           frame_clause = FrameClause.new(frame_relation_hash)
 
           relation_without_type_condition.tap do |rel|
