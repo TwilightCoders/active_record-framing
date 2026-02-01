@@ -35,9 +35,14 @@ module ActiveRecord
         #   }
         def unframed
           result = block_given? ? unframed_all.framing { yield } : unframed_all
-          # Clear frame_clause and reset table to base arel_table
-          result.frame_clause = FrameClause.new({})
-          result.table = arel_table
+          # Clear frame_clause and reset table to base arel_table (only for Relations)
+          # Use tap to modify a spawned copy to avoid polluting shared state
+          if result.is_a?(ActiveRecord::Relation)
+            result = result.spawn.tap do |r|
+              r.frame_clause = FrameClause.new({})
+              r.table = arel_table
+            end
+          end
           result
         end
 

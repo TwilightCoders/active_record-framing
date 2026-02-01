@@ -89,21 +89,25 @@ describe 'Edge Cases' do
     
     describe 'UNION' do
       it 'works with union' do
+        # Some Rails versions support union
+        skip("UNION not supported in this Rails version") unless User.respond_to?(:union)
+
+        User.create(name: 'Alice', kind: 1)
+        User.create(name: 'Bob', kind: 2)
+
         users1 = User.where(kind: 1)
         users2 = User.where(kind: 2)
-        
-        # Some Rails versions support union
-        if User.respond_to?(:union)
-          union = users1.union(users2)
-          expect(union.count).to be > 0
-        else
-          pending("UNION not supported in this Rails version")
-        end
+
+        union = users1.union(users2)
+        expect(union.count).to be >= 2
       end
     end
 
     describe 'LIMIT and OFFSET' do
       it 'works with limit' do
+        User.create(name: 'Alice', kind: 1)
+        User.create(name: 'Bob', kind: 1)
+
         users = User.limit(1)
         expect(users.count).to eq(1)
       end
@@ -234,11 +238,17 @@ describe 'Edge Cases' do
     end
 
     it 'works with reverse_order' do
+      User.create(name: 'Alice', kind: 1)
+      User.create(name: 'Bob', kind: 1)
+
       users = User.order(:id).reverse_order
       expect(users).not_to be_empty
     end
 
     it 'works with reorder' do
+      User.create(name: 'Alice', kind: 1)
+      User.create(name: 'Bob', kind: 1)
+
       users = User.order(:id).reorder(:name)
       expect(users).not_to be_empty
     end
