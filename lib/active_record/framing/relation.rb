@@ -193,6 +193,59 @@ module ActiveRecord
         klass.current_frame = previous unless @delegate_to_klass
       end
 
+      # Override mutation methods to convert frames to WHERE conditions
+      # Frames are CTEs which cannot be updated/deleted directly
+      # Instead, we need to use the base table with the frame's WHERE conditions
+
+      def update_all(updates)
+        if frame_clause.empty?
+          super
+        else
+          as_mutation_relation.update_all(updates)
+        end
+      end
+
+      def delete_all
+        if frame_clause.empty?
+          super
+        else
+          as_mutation_relation.delete_all
+        end
+      end
+
+      def destroy_all
+        if frame_clause.empty?
+          super
+        else
+          as_mutation_relation.destroy_all
+        end
+      end
+
+    private
+
+      # Converts a framed relation to one suitable for mutations
+      # Returns a new relation with:
+      # - Frame conditions merged as WHERE clauses
+      # - Base table name (not frame table name)
+      # - No frame_clause (CTEs removed)
+      def as_mutation_relation
+        # Start with unframed to get a clean relation with base table
+        # This removes frames but keeps default_scope
+        relation = klass.unframed
+
+        # Merge all WHERE conditions from frames
+        frame_clause.frames.each do |arel_table, frame_relation|
+          # Merge the frame's WHERE conditions
+          relation = relation.merge(frame_relation.unscope(:select))
+        end
+
+        # Merge any WHERE conditions from the current relation
+        # (conditions added after the frame was applied)
+        relation = relation.where(where_clause) if where_clause.any?
+
+        relation
+      end
+
     end
   end
 end

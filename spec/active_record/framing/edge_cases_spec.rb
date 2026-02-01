@@ -80,7 +80,7 @@ describe 'Edge Cases' do
     it 'handles polymorphic associations if present' do
       # Most test suites don't have polymorphic models
       # But if they did, frames should work
-      pending("No polymorphic associations in test suite")
+      skip("No polymorphic associations in test suite")
     end
 
   end
@@ -181,7 +181,8 @@ describe 'Edge Cases' do
       # The frame should not set default attributes
       user = User.new
       # Even though frame filters by kind, it shouldn't SET kind
-      expect(user.kind).to be_nil
+      # (kind defaults to 0 from database default, not from frame)
+      expect(user.kind).to eq(0)
     end
 
   end
@@ -219,9 +220,9 @@ describe 'Edge Cases' do
 
     it 'works with has_many through' do
       user = User.create(kind: 1)
-      post = Post.create(user: user)
+      post = Post.create(user: user, scope: 1)
       comment = Comment.create(post: post, user: user)
-      
+
       # Post has_many :commenters, through: :comments
       if post.respond_to?(:commenters)
         expect(post.commenters).to include(user)

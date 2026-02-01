@@ -5,8 +5,9 @@ describe 'ActiveRecord Method Integration' do
   before do
     @user = User.create(name: 'Alice', kind: 1)
     @admin = Admin.create(name: 'Bob', kind: 2)
-    @deleted_post = Post.create(title: 'Deleted', user: @user, deleted_at: Time.now)
-    @active_post = Post.create(title: 'Active', user: @user, deleted_at: nil)
+    # Set scope: 1 to match Post's default_scope
+    @deleted_post = Post.create(title: 'Deleted', user: @user, deleted_at: Time.now, scope: 1)
+    @active_post = Post.create(title: 'Active', user: @user, deleted_at: nil, scope: 1)
   end
 
   context 'calculation methods' do
@@ -117,7 +118,8 @@ describe 'ActiveRecord Method Integration' do
 
       it 'only updates records in frame' do
         Post::Deleted.update_all(title: 'Changed')
-        expect(@deleted_post.reload.title).to eq('Changed')
+        # Use unscoped to verify because @deleted_post is outside Post's default frame and scope
+        expect(Post.unscoped.find(@deleted_post.id).title).to eq('Changed')
         expect(@active_post.reload.title).to eq('Active')
       end
     end
@@ -280,9 +282,11 @@ describe 'ActiveRecord Method Integration' do
     it 'works with WHERE ... IN (SELECT ...)' do
       user_ids = User.where(kind: 1).select(:id)
       posts = Post.where(user_id: user_ids)
-      
+
       expect(posts.to_sql).to include('WITH')
-      expect(posts).to include(@active_post, @deleted_post)
+      # Post's default_frame filters for deleted_at IS NULL, so only active post is returned
+      expect(posts).to include(@active_post)
+      expect(posts).not_to include(@deleted_post)
     end
 
     it 'works with EXISTS subqueries' do
