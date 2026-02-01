@@ -182,6 +182,7 @@ module ActiveRecord
         def build_default_frame(base_rel = nil)
           return if abstract_class?
           return if ignore_default_frame?
+          return if ActiveRecord::Framing.disabled?
 
           frames_to_build = if default_frame_override?
             # The user has defined their own default frame method, so call that

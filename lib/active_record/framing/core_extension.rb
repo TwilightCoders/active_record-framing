@@ -26,14 +26,15 @@ module ActiveRecord
     end
 
     def self.disable
-      @disabled = true
+      old_value = FrameRegistry.instance.disabled
+      FrameRegistry.instance.disabled = true
       yield if block_given?
     ensure
-      @disabled = false
+      FrameRegistry.instance.disabled = old_value
     end
 
     def self.disabled?
-      @disabled == true
+      FrameRegistry.instance.disabled == true
     end
 
     class Foo
@@ -90,8 +91,11 @@ module ActiveRecord
 
       VALID_SCOPE_TYPES = [:current_frame, :ignore_default_frame]
 
+      attr_accessor :disabled
+
       def initialize
         @registry = Hash.new { |hash, key| hash[key] = {} }
+        @disabled = false
       end
 
       # Obtains the value for a given +scope_type+ and +model+.
