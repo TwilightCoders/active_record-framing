@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+# Console for active_record-framing with Combustion test app
+
+require "bundler/setup"
+
+ENV['RAILS_ENV'] = 'test'
+
+require 'combustion'
+Combustion.path = 'spec/support/rails'
+Combustion.initialize! :active_record
+
+require 'active_record/framing/railtie' if defined?(Rails::Railtie)
+
+# Give models a moment to load
+sleep 0.1
+
+puts "Loaded models: #{ActiveRecord::Base.descendants.map(&:name).sort.join(', ')}"
+puts "\nTry: User, Admin, Post, Comment, Post::Deleted, etc."
+
+require "pry"
+Pry.start

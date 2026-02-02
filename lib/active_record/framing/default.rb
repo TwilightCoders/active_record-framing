@@ -34,8 +34,7 @@ module ActiveRecord
         #     Post.limit(10) # Fires "SELECT * FROM posts LIMIT 10"
         #   }
         def unframed(&block)
-          # Delegate to the Relation instance method
-          # This keeps all frame manipulation logic in one place (Relation module)
+          # Delegate to instance method which properly clears frame_clause and resets table
           unframed_all.unframed(&block)
         end
 

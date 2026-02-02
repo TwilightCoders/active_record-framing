@@ -61,6 +61,13 @@ module ActiveRecord
         current_frame&.arel_table || super
       end
 
+      # Returns the base Arel::Table, bypassing any current_frame.
+      # Always constructs a fresh table from table_name, ignoring frame overrides.
+      # Works for both Models and ModelProxy (through SimpleDelegator).
+      def unframed_arel_table
+        Arel::Table.new(table_name, type_caster: type_caster)
+      end
+
       def const_missing(const_name)
         case const_name
         when *frames.keys
