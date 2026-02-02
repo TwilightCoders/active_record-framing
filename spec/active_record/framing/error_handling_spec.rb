@@ -60,12 +60,12 @@ describe 'Error Handling' do
         frame :nil_frame, -> { nil }
       end
 
-      # Should not crash, but behavior depends on implementation
+      # Should not crash with NoMethodError
       expect {
         sql = User::NilFrame.all.to_sql
         # Either it should work (treating nil as no-op)
-        # or it should raise a clear error
-      }.not_to raise_error(NoMethodError)
+        # or it should raise a clear error (but not NoMethodError)
+      }.not_to raise_error
     end
 
     it 'handles empty frame (no conditions)' do
@@ -100,7 +100,7 @@ describe 'Error Handling' do
 
       expect {
         User::BadReturn.all.to_sql
-      }.to raise_error
+      }.to raise_error(ArgumentError, /not an ActiveRecord::Relation/)
     end
 
     it 'handles frame with invalid SQL syntax' do
@@ -108,10 +108,10 @@ describe 'Error Handling' do
         frame :bad_sql, -> { where("invalid SQL syntax here @@#\$") }
       end
 
-      # Should either raise during SQL generation or execution
+      # Should raise during SQL execution
       expect {
         User::BadSql.all.load
-      }.to raise_error
+      }.to raise_error(ActiveRecord::StatementInvalid)
     end
 
   end

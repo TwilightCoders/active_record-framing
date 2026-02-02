@@ -2,8 +2,8 @@ require 'spec_helper'
 
 RSpec.describe 'Table name propagation in WHERE clauses' do
   before(:each) do
-    User.delete_all
-    Post.delete_all
+    User.unframed.delete_all
+    Post.unframed.delete_all
   end
 
   describe 'named frames with WHERE clauses' do

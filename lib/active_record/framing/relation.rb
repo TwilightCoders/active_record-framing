@@ -22,6 +22,20 @@ module ActiveRecord
       def build_arel(*)
         @klass.reframe_values = reframe_values
 
+        # Set current_frame for each reframed association BEFORE building Arel.
+        # This ensures that when the target class's arel_table is called during
+        # JOIN building, it returns the framed table instead of the base table.
+        # This eliminates the need for invasive tree-walking to fix table references.
+        previous_frames = {}
+        reframe_values.each do |assoc_name, reframe_relation|
+          # Get the association to find the target class
+          if (assoc = klass.reflect_on_association(assoc_name))
+            target_klass = assoc.klass
+            previous_frames[target_klass] = target_klass.current_frame
+            target_klass.current_frame = reframe_relation
+          end
+        end
+
         super.tap do |ar|
           unless ignore_default_frame?
             build_frames(ar)
@@ -37,6 +51,11 @@ module ActiveRecord
               ar.with(*frame_ctes)
             end
           end
+        end
+      ensure
+        # Restore previous current_frame values
+        previous_frames&.each do |target_klass, previous_frame|
+          target_klass.current_frame = previous_frame
         end
       end
 
@@ -64,21 +83,9 @@ module ActiveRecord
       end
 
       def aggregate_column(column_name)
-        # When we have a frame, we need to use the frame table for aggregations
-        # Otherwise COUNT(DISTINCT "documents"."id") will reference the wrong table
-        # when the FROM clause uses "deleted/documents"
-        framing do
-          column = super
-
-          # If we have a frame and super returned an Arel attribute,
-          # replace its relation with the frame table
-          if frame_clause.any? && @table && column.is_a?(Arel::Attributes::Attribute)
-            # Create a new attribute with the same name but on the frame table
-            Arel::Attributes::Attribute.new(@table, column.name)
-          else
-            column
-          end
-        end
+        # The framing block sets current_frame, which makes arel_table return the framed table.
+        # This ensures aggregations use the correct table reference.
+        framing { super }
       end
 
       def build_joins(*)
@@ -102,42 +109,46 @@ module ActiveRecord
       #    @table_alias=nil>,
       # NOTE: In Rails 5.2 (at least) we could use the InnerJoin.left.type_caster
       def build_frames(manager)
-        # NOTE: We cannot early exclude associations because some associations are different from their table names
-        # TODO: cache known associations, (renable warning)
-        reframe_values_copy = reframe_values.dup
-        assocs = klass.reflect_on_all_associations.inject(Hash.new) do |assocs, assoc|
-          begin
-            if (reframe_value = reframe_values_copy.delete(assoc.name))
-              reframe_values_copy[assoc.klass.table_name] = reframe_value
-            end
-            assocs[assoc.name] = assoc
-          rescue NameError => e
-            # Silently skip associations that can't be resolved
-          end
-          assocs
+        # Step 1: Build associations lookup hash
+        assocs = klass.reflect_on_all_associations.each_with_object({}) do |assoc, hash|
+          hash[assoc.name] = assoc
+        rescue NameError
+          # Skip associations that can't be resolved
         end
 
+        # Step 2: Convert reframe_values keys from association names to table names
+        # Some associations use different names than their table names
+        reframe_by_table = convert_association_keys_to_table_names(reframe_values, assocs)
+
+        # Step 3: Frame each JOIN source
         manager.join_sources.each do |join_source|
           next unless join_source&.left&.respond_to?(:name)
           source_table = join_source.left
           if (join_class = derive_engine(source_table, assocs))
-            reframe_source = reframe_values_copy.fetch(join_class.table_name) { join_class.all }
+            reframe_source = reframe_by_table.fetch(join_class.table_name) { join_class.all }
             reframe_cte = frame_cte_for(reframe_source)
             frame!(reframe_cte)
-            # Fix JOIN conditions to reference the framed table instead of the base table
-            # from_table = the old table reference in the JOIN
-            # to_table = the new framed table we want to use
-            fix_right_side(join_source.right, source_table, reframe_source.arel_table) if reframe_source
           end
         end
 
-        reframe_values_copy.each do |assoc_name, relation|
+        # Step 4: Add any nested frames from reframed relations
+        reframe_by_table.each_value do |relation|
           relation.frame_clause.frames.each do |cte_table, frame_relation|
-            # cte_table is an Arel::Table with the CTE name
-            # frame_relation is the Relation defining the CTE
-            table_name = frame_relation.klass.table_name
-            original = reframe_values_copy.fetch(table_name, {})
             frame!(cte_table => frame_relation)
+          end
+        end
+      end
+
+      # Convert reframe_values keys from association names to table names.
+      # Example: { posts: Post::Deleted } => { "documents" => Post::Deleted }
+      def convert_association_keys_to_table_names(reframe_vals, associations)
+        reframe_vals.each_with_object({}) do |(key, value), result|
+          if (assoc = associations[key])
+            # Key is an association name, use its table name
+            result[assoc.klass.table_name] = value
+          else
+            # Key is already a table name or something else
+            result[key] = value
           end
         end
       end
@@ -147,37 +158,6 @@ module ActiveRecord
           associations[source_table.name]
         else
           source_table.engine
-        end
-      end
-
-      def fix_right_side(arel, from_table, to_table)
-        case arel
-        when Arel::Nodes::On, Arel::Nodes::Grouping
-          fix_right_side(arel.expr, from_table, to_table)
-        when Arel::Nodes::And
-          fix_right_side(arel.children, from_table, to_table)
-        when Array
-          arel.each do |a1|
-            fix_right_side(a1, from_table, to_table)
-          end
-        when Arel::Nodes::Binary
-          fix_right_side(arel.left, from_table, to_table)
-          fix_right_side(arel.right, from_table, to_table)
-        when Arel::Nodes::Casted
-          fix_right_side(arel.attribute, from_table, to_table)
-        when Arel::Attributes::Attribute
-          # Only replace attributes that reference the table we're framing
-          # Check against the base name of to_table (handles both "users" and "deleted/users")
-          if arel.relation.name == to_table.name.split('/').last
-            arel.relation = to_table
-          end
-          # Attributes referencing other tables are left unchanged
-        when Arel::Nodes::BindParam
-          # Nothing (must come before Arel::Nodes::Node)
-        when Arel::Nodes::Node
-          fix_right_side(arel.value, from_table, to_table)
-        else
-          # No Op
         end
       end
 
@@ -241,7 +221,8 @@ module ActiveRecord
 
     private
 
-      # Converts a framed relation to one suitable for mutations
+      # Converts a framed relation to one suitable for mutations.
+      # CTEs cannot be mutated directly, so we convert frames to WHERE clauses on the base table.
       # Returns a new relation with:
       # - Frame conditions merged as WHERE clauses
       # - Base table name (not frame table name)
@@ -252,16 +233,14 @@ module ActiveRecord
         relation = klass.unframed
 
         # Merge all WHERE conditions from frames
-        frame_clause.frames.each do |arel_table, frame_relation|
-          # Merge the frame's WHERE conditions
+        frame_clause.frames.each_value do |frame_relation|
           relation = relation.merge(frame_relation.unscope(:select))
         end
 
-        # Merge any WHERE conditions from the current relation
+        # Merge any additional WHERE conditions from the current relation
         # (conditions added after the frame was applied)
         if where_clause.any?
-          # Spawn a new relation with the merged where clause
-          relation = relation.spawn.tap { |r| r.where_clause = r.where_clause.merge(where_clause) }
+          relation = relation.merge(spawn.only(:where))
         end
 
         relation

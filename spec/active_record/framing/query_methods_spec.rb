@@ -9,9 +9,11 @@ describe ActiveRecord::Framing::QueryMethods do
         # that would get carried over in a count operation.
         # This proved particularly problematic for
 
-        user = User.create(name: 'foo', kind: 1)
-        admin = Admin.create(name: 'foo', kind: 2)
-        post = Post.create(title: 'hi', user: user, deleted_at: Time.now)
+        user = User.unscoped.create(name: 'foo', kind: 1)
+        # Admin inherits User's default_scope (kind: 1), so use kind: 1 for admin too
+        # Otherwise the default_scope will filter it out
+        admin = Admin.unscoped.create(name: 'foo', kind: 1)
+        post = Post.unscoped.create(title: 'hi', user: user, deleted_at: Time.now, scope: 1)
         comment = Comment.create(post: post, user: admin)
 
         # TODO: Add :user back to test disambiguation between "WITH users" and "WITH admins" (in join)

@@ -32,6 +32,16 @@ RSpec.configure do |config|
     DatabaseCleaner.clean_with(:truncation)
   end
 
+  # Clean up any leftover current_frame settings BEFORE each test
+  # This prevents test pollution from frames set by previous tests
+  config.before(:each) do
+    # Get all loaded AR models (including dynamically created ones like SuperAdmin)
+    models = ObjectSpace.each_object(Class).select { |klass| klass < ActiveRecord::Base }
+    models.each do |klass|
+      klass.current_frame = nil rescue nil
+    end
+  end
+
   config.around(:each) do |example|
     DatabaseCleaner.cleaning do
       example.run

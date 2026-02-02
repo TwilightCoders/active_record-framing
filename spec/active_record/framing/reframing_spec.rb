@@ -32,13 +32,11 @@ describe ActiveRecord::Framing do
     end
 
     it 'should generate the correct SQL' do
-      deleted_join = rx('"deleted/documents"\."user_id" = "users"\."id".*?"deleted/documents"\."scope" = 1')
-
       expect(User.joins(posts: :comments).reframe(posts: Post::Deleted).to_sql).to match_sql(<<~SQL)
         WITH "users" AS (SELECT "users".* FROM "users" WHERE #{rx('.*?')}),
-        "deleted/documents" AS (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NOT NULL)
+        "deleted/documents" AS (SELECT "documents".* FROM "documents" WHERE #{rx('.*?')})
         SELECT "users".* FROM "users"
-        INNER JOIN "deleted/documents" ON #{deleted_join}
+        INNER JOIN "deleted/documents" ON "deleted/documents"."user_id" = "users"."id" AND "deleted/documents"."scope" = 1
         INNER JOIN "comments" ON "comments"."post_id" = "deleted/documents"."id"
       SQL
     end

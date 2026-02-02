@@ -34,16 +34,35 @@ module ActiveRecord
         #     Post.limit(10) # Fires "SELECT * FROM posts LIMIT 10"
         #   }
         def unframed
+          # Clear current_frame so default_scope uses base table, but still gets evaluated
+          saved_frame = current_frame
+          self.current_frame = nil
           result = block_given? ? unframed_all.framing { yield } : unframed_all
           # Clear frame_clause and reset table to base arel_table (only for Relations)
           # Use tap to modify a spawned copy to avoid polluting shared state
           if result.is_a?(ActiveRecord::Relation)
+            # Temporarily ignore default_frame while spawning to prevent it from being re-applied
+            self.ignore_default_frame = true
             result = result.spawn.tap do |r|
               r.frame_clause = FrameClause.new({})
+              # Use base arel_table (current_frame is already nil)
               r.table = arel_table
             end
+            self.ignore_default_frame = false
           end
           result
+        ensure
+          self.current_frame = saved_frame
+        end
+
+        # Get the base arel_table without our current_frame override
+        def superclass_arel_table
+          # Temporarily clear current_frame to bypass our override
+          saved_frame = current_frame
+          self.current_frame = nil
+          arel_table
+        ensure
+          self.current_frame = saved_frame
         end
 
         def ignore_default_frame?
