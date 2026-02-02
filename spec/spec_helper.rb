@@ -54,10 +54,23 @@ end
 #          SELECT * FROM users WHERE #{rx('.*?')}
 #        SQL
 class RegexMarker
+  # Class variable to prevent GC of marker objects
+  @@markers = {}
+
   attr_reader :regex
 
   def initialize(pattern)
     @regex = pattern.is_a?(Regexp) ? pattern : Regexp.new(pattern)
+    # Store reference to prevent garbage collection
+    @@markers[object_id] = self
+  end
+
+  def self.lookup(object_id)
+    @@markers[object_id]
+  end
+
+  def self.clear_markers
+    @@markers.clear
   end
 
   def to_s

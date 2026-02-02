@@ -124,7 +124,10 @@ module ActiveRecord
             reframe_source = reframe_values_copy.fetch(join_class.table_name) { join_class.all }
             reframe_cte = frame_cte_for(reframe_source)
             frame!(reframe_cte)
-            fix_right_side(join_source.right, reframe_source.arel_table, source_table) if reframe_source
+            # Fix JOIN conditions to reference the framed table instead of the base table
+            # from_table = the old table reference in the JOIN
+            # to_table = the new framed table we want to use
+            fix_right_side(join_source.right, source_table, reframe_source.arel_table) if reframe_source
           end
         end
 
@@ -163,13 +166,12 @@ module ActiveRecord
         when Arel::Nodes::Casted
           fix_right_side(arel.attribute, from_table, to_table)
         when Arel::Attributes::Attribute
-          # Check if this attribute references either the frame table or the base table
-          # Default scopes create attributes with base table name, so we need to handle both
-          if arel.relation.name == from_table.name || arel.relation.name == to_table.name.split('/').last
+          # Only replace attributes that reference the table we're framing
+          # Check against the base name of to_table (handles both "users" and "deleted/users")
+          if arel.relation.name == to_table.name.split('/').last
             arel.relation = to_table
-          else
-            warn "#{arel.relation.name} != #{from_table.name} for #{arel.name}"
           end
+          # Attributes referencing other tables are left unchanged
         when Arel::Nodes::BindParam
           # Nothing (must come before Arel::Nodes::Node)
         when Arel::Nodes::Node
