@@ -182,39 +182,36 @@ module ActiveRecord
       #   # =>   SELECT "comments".* FROM "comments" WHERE "comments"."post_id" = 1
       #   # => ) SELECT "comments".* FROM "comments" ORDER BY "comments"."id" ASC LIMIT 1
       #
-      # Executes a block with custom frame context.
+      # Executes a block with custom frame context, or returns a framed relation.
       #
       # Options:
-      #   skip_default_frame: If true, removes all frames (including default_frame) before yielding
+      #   skip_default_frame: If true, removes all frames (including default_frame)
+      #   skip_inherited_frame: If true, ignores frames from parent classes
       #
       #   Comment.where(post_id: 1).framing do
       #     Comment.first  # Uses the where(post_id: 1) frame
       #   end
       #
-      # Please check unframed if you want to remove all previous frames.
-      def framing(skip_default_frame: false)
+      #   Comment.framing(skip_default_frame: true)  # Returns unframed relation
+      #
+      # Please check unframed if you want to remove all frames.
+      def framing(skip_default_frame: false, skip_inherited_frame: false)
         model_class = klass.is_a?(ModelProxy) ? klass.__getobj__ : klass
-        previous_frame = model_class.current_frame(skip_inherited_frame: true) unless @delegate_to_klass
+        previous_frame = model_class.current_frame(skip_inherited_frame: skip_inherited_frame) unless @delegate_to_klass
 
-        # If skip_default_frame, clear frames first
-        relation_to_use = if skip_default_frame
-          model_class.current_frame = nil
-          FrameRegistry.set_value_for(:ignore_default_frame, model_class.base_class, true)
-          spawn.tap do |r|
-            r.frame_clause = FrameClause.new({})
-            r.table = model_class.arel_table
-          end.tap { FrameRegistry.set_value_for(:ignore_default_frame, model_class.base_class, false) }
+        relation_to_use = skip_default_frame ? spawn_without_frames : self
+
+        if block_given?
+          model_class.current_frame = relation_to_use unless @delegate_to_klass
+          yield
         else
-          self
+          relation_to_use
         end
-
-        model_class.current_frame = relation_to_use unless @delegate_to_klass
-        yield
       ensure
         model_class.current_frame = previous_frame unless @delegate_to_klass
       end
 
-      # Removes all frames (including default_frame) from this relation.
+      # Removes all frames (including default_frame and inherited frames) from this relation.
       # Preserves default_scope (WHERE conditions) but removes the CTE wrapping.
       #
       #   Post::Deleted.unframed.to_sql
@@ -227,19 +224,7 @@ module ActiveRecord
       #     Post.first  # Uses base table without frames
       #   end
       def unframed(&block)
-        if block_given?
-          # Delegate to framing with skip_default_frame flag
-          framing(skip_default_frame: true, &block)
-        else
-          # Non-block case: clear frames and return the relation
-          model_class = klass.is_a?(ModelProxy) ? klass.__getobj__ : klass
-          model_class.current_frame = nil
-          FrameRegistry.set_value_for(:ignore_default_frame, model_class.base_class, true)
-          spawn.tap do |r|
-            r.frame_clause = FrameClause.new({})
-            r.table = model_class.arel_table
-          end.tap { FrameRegistry.set_value_for(:ignore_default_frame, model_class.base_class, false) }
-        end
+        framing(skip_default_frame: true, skip_inherited_frame: true, &block)
       end
 
       # Override mutation methods to convert frames to WHERE conditions
@@ -271,6 +256,26 @@ module ActiveRecord
       end
 
     private
+
+      # Spawns a new relation with all frames cleared.
+      # Clears frame_clause, resets table to base arel_table, and temporarily clears current_frame.
+      # Saves and restores current_frame to avoid polluting class-level state.
+      def spawn_without_frames
+        model_class = klass.is_a?(ModelProxy) ? klass.__getobj__ : klass
+        saved_frame = model_class.current_frame
+        model_class.current_frame = nil
+
+        FrameRegistry.set_value_for(:ignore_default_frame, model_class.base_class, true)
+        result = spawn.tap do |r|
+          r.frame_clause = FrameClause.new({})
+          r.table = model_class.arel_table
+        end
+        FrameRegistry.set_value_for(:ignore_default_frame, model_class.base_class, false)
+
+        result
+      ensure
+        model_class.current_frame = saved_frame
+      end
 
       # Converts a framed relation to one suitable for mutations.
       # CTEs cannot be mutated directly, so we convert frames to WHERE clauses on the base table.

@@ -58,13 +58,7 @@ module ActiveRecord
       # the framed table (e.g., "deleted/documents") is used instead of the base table (e.g., "documents").
       # This is the KEY to eliminating invasive tree-walking (fix_right_side).
       def arel_table
-        # Don't use current_frame table if we're ignoring default_frame
-        # (e.g., during default_scope evaluation or unframed operations)
-        if ignore_default_frame?
-          super
-        else
-          current_frame&.arel_table || super
-        end
+        current_frame&.arel_table || super
       end
 
       def const_missing(const_name)
