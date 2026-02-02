@@ -182,13 +182,64 @@ module ActiveRecord
       #   # =>   SELECT "comments".* FROM "comments" WHERE "comments"."post_id" = 1
       #   # => ) SELECT "comments".* FROM "comments" ORDER BY "comments"."id" ASC LIMIT 1
       #
-      # Please check unframed if you want to remove all previous frames (including
-      # the default_frame) during the execution of a block.
-      def framing
-        previous, klass.current_frame = klass.current_frame(skip_inherited_frame: true), self unless @delegate_to_klass
+      # Executes a block with custom frame context.
+      #
+      # Options:
+      #   skip_default_frame: If true, removes all frames (including default_frame) before yielding
+      #
+      #   Comment.where(post_id: 1).framing do
+      #     Comment.first  # Uses the where(post_id: 1) frame
+      #   end
+      #
+      # Please check unframed if you want to remove all previous frames.
+      def framing(skip_default_frame: false)
+        model_class = klass.is_a?(ModelProxy) ? klass.__getobj__ : klass
+        previous_frame = model_class.current_frame(skip_inherited_frame: true) unless @delegate_to_klass
+
+        # If skip_default_frame, clear frames first
+        relation_to_use = if skip_default_frame
+          model_class.current_frame = nil
+          FrameRegistry.set_value_for(:ignore_default_frame, model_class.base_class, true)
+          spawn.tap do |r|
+            r.frame_clause = FrameClause.new({})
+            r.table = model_class.arel_table
+          end.tap { FrameRegistry.set_value_for(:ignore_default_frame, model_class.base_class, false) }
+        else
+          self
+        end
+
+        model_class.current_frame = relation_to_use unless @delegate_to_klass
         yield
       ensure
-        klass.current_frame = previous unless @delegate_to_klass
+        model_class.current_frame = previous_frame unless @delegate_to_klass
+      end
+
+      # Removes all frames (including default_frame) from this relation.
+      # Preserves default_scope (WHERE conditions) but removes the CTE wrapping.
+      #
+      #   Post::Deleted.unframed.to_sql
+      #   # => SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NOT NULL
+      #   # (no CTE, but default_scope's WHERE clause is preserved)
+      #
+      # Accepts a block to temporarily remove frames:
+      #
+      #   Post::Deleted.unframed do
+      #     Post.first  # Uses base table without frames
+      #   end
+      def unframed(&block)
+        if block_given?
+          # Delegate to framing with skip_default_frame flag
+          framing(skip_default_frame: true, &block)
+        else
+          # Non-block case: clear frames and return the relation
+          model_class = klass.is_a?(ModelProxy) ? klass.__getobj__ : klass
+          model_class.current_frame = nil
+          FrameRegistry.set_value_for(:ignore_default_frame, model_class.base_class, true)
+          spawn.tap do |r|
+            r.frame_clause = FrameClause.new({})
+            r.table = model_class.arel_table
+          end.tap { FrameRegistry.set_value_for(:ignore_default_frame, model_class.base_class, false) }
+        end
       end
 
       # Override mutation methods to convert frames to WHERE conditions
