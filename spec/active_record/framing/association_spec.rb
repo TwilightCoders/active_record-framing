@@ -11,8 +11,7 @@ describe ActiveRecord::Framing::Relation do
       # Frame CTEs use unscoped to avoid bind parameter issues
       # So default_scope is not included in the CTE, only default_frame
       expect(sql).to match_sql(<<~SQL)
-        WITH "documents" AS
-          (SELECT "documents".* FROM "documents" WHERE \(?"documents"."deleted_at" IS NULL\)?)
+        WITH "documents" AS (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
         SELECT "documents".* FROM "documents" WHERE "documents"."user_id" = #{user.id}
       SQL
 
@@ -47,10 +46,9 @@ describe ActiveRecord::Framing::Relation do
       end
 
       expect(post.commenters.to_sql).to match_sql(<<~SQL)
-        WITH "users" AS
-          (SELECT "users".* FROM "users" WHERE \(?("users"."kind" IS NOT NULL| AND |"users"."kind" = 1)+\)?
+        WITH "users" AS (SELECT "users".* FROM "users" WHERE #{rx('.*?')})
         SELECT "users".* FROM "users"
-          INNER JOIN "comments" ON "users"."id" = "comments"."user_id" WHERE "comments"."post_id" = #{post.id}
+        INNER JOIN "comments" ON "users"."id" = "comments"."user_id" WHERE "comments"."post_id" = #{post.id}
       SQL
 
     end

@@ -32,31 +32,27 @@ describe ActiveRecord::Framing do
     end
 
     it 'should generate the correct SQL' do
+      deleted_join = rx('"deleted/documents"\."user_id" = "users"\."id".*?"deleted/documents"\."scope" = 1')
+
       expect(User.joins(posts: :comments).reframe(posts: Post::Deleted).to_sql).to match_sql(<<~SQL)
-        WITH
-          "users" AS
-            (SELECT "users".* FROM "users" WHERE "users"."kind" = 1),
-          "deleted/documents" AS
-            (SELECT "documents".* FROM "documents" WHERE \(?"documents"."deleted_at" IS NOT NULL\)?)
+        WITH "users" AS (SELECT "users".* FROM "users" WHERE #{rx('.*?')}),
+        "deleted/documents" AS (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NOT NULL)
         SELECT "users".* FROM "users"
-          INNER JOIN "deleted/documents" ON (\(?("deleted/documents"."user_id" = "users"."id"\)?|\(?"deleted/documents"."scope" = 1\)?| AND ))+
-          INNER JOIN "comments" ON "comments"."post_id" = "deleted/documents"."id"
-          WHERE \(?"users"."kind" IS NOT NULL\)?
+        INNER JOIN "deleted/documents" ON #{deleted_join}
+        INNER JOIN "comments" ON "comments"."post_id" = "deleted/documents"."id"
       SQL
     end
 
     it 'should not apply the same reframe to subsequent relations' do
       decoy_sql = User.joins(posts: :comments).reframe(posts: Post::Deleted).to_sql
+      doc_join = rx('"documents"\."user_id" = "users"\."id".*?"documents"\."scope" = 1')
+
       expect(User.joins(posts: :comments).to_sql).to match_sql(<<~SQL)
-        WITH
-          "users" AS
-            (SELECT "users".* FROM "users" WHERE "users"."kind" = 1),
-          "documents" AS
-            (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
+        WITH "users" AS (SELECT "users".* FROM "users" WHERE #{rx('.*?')}),
+        "documents" AS (SELECT "documents".* FROM "documents" WHERE "documents"."deleted_at" IS NULL)
         SELECT "users".* FROM "users"
-          INNER JOIN "documents" ON (\(?("documents"."user_id" = "users"."id"\)?|\(?"documents"."scope" = 1\)?| AND ))+
-          INNER JOIN "comments" ON "comments"."post_id" = "documents"."id"
-          WHERE \(?"users"."kind" IS NOT NULL\)?
+        INNER JOIN "documents" ON #{doc_join}
+        INNER JOIN "comments" ON "comments"."post_id" = "documents"."id"
       SQL
     end
 

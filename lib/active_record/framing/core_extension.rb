@@ -45,7 +45,7 @@ module ActiveRecord
     end
 
     module ClassMethods # :nodoc:
-      def current_frame(skip_inherited_frame = false)
+      def current_frame(skip_inherited_frame: false)
         FrameRegistry.value_for(:current_frame, self, skip_inherited_frame)
       end
 
@@ -103,8 +103,9 @@ module ActiveRecord
       def value_for(frame_type, model, skip_inherited_frame = false)
         raise_invalid_frame_type!(frame_type)
         return @registry[frame_type][model] if skip_inherited_frame
-        base = model.base_class
-        while model <= base
+        # Walk up the hierarchy to ActiveRecord::Base
+        # This handles abstract intermediate classes correctly
+        while model < ::ActiveRecord::Base
           value = @registry[frame_type][model]
           return value if value
           model = model.superclass
