@@ -163,6 +163,8 @@ module ActiveRecord
 
       # Override bound_attributes to include bind values from frame Relations.
       # Frame bind values must come first because the CTE is defined first in the SQL.
+      # NOTE: In Rails 6+, bound_attributes was removed. Binds are now embedded in Arel nodes.
+      # This method is only called in Rails 5.x (Rails 6 doesn't use this API)
       def bound_attributes
         if ignore_frames? || frame_clause.empty?
           super

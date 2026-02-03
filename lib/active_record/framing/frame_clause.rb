@@ -43,9 +43,15 @@ module ActiveRecord
 
       # Get all bound_attributes from the frame Relations
       # IMPORTANT: Cache this before calling to_arel_ctes because
-      # compiling relations consumes their bound_attributes
+      # compiling relations consumes their bound_attributes (Rails 5.x)
+      # In Rails 6+, binds are embedded in Arel nodes and don't need manual collection
       def binds
-        @cached_binds ||= frames.values.flat_map(&:bound_attributes)
+        if ActiveRecord.version < Gem::Version.new('6.0')
+          @cached_binds ||= frames.values.flat_map(&:bound_attributes)
+        else
+          # Rails 6+: Binds are handled automatically by Arel
+          []
+        end
       end
 
       # Compile frames to Arel CTE nodes

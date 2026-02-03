@@ -1,5 +1,6 @@
 ENV['RAILS_ENV'] = 'test'
 
+require 'logger'  # Rails 6.0 requires explicit Logger require
 require 'database_cleaner'
 require 'combustion'
 require 'pry'
