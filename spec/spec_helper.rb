@@ -63,6 +63,11 @@ RSpec.configure do |config|
     models.each do |klass|
       klass.current_frame = nil rescue nil
       ActiveRecord::Framing::FrameRegistry.set_value_for(:ignore_frames, klass.base_class, false) rescue nil
+      # Also clear cached predicatebuilders/metadata that might have stale table references
+      klass.instance_variable_set(:@default_scopes, nil) rescue nil
+      klass.instance_variable_set(:@default_scope, nil) rescue nil
+      klass.instance_variable_set(:@predicate_builder, nil) rescue nil
+      klass.instance_variable_set(:@table_metadata, nil) rescue nil
     end
   end
 

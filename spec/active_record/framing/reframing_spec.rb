@@ -36,14 +36,14 @@ describe ActiveRecord::Framing do
         WITH "users" AS (SELECT "users".* FROM "users" WHERE #{rx('.*?')}),
         "deleted/documents" AS (SELECT "documents".* FROM "documents" WHERE #{rx('.*?')})
         SELECT "users".* FROM "users"
-        INNER JOIN "deleted/documents" ON "deleted/documents"."user_id" = "users"."id" AND "deleted/documents"."scope" = 1
+        INNER JOIN "deleted/documents" ON #{rx('(("deleted/documents"\."user_id" = "users"\."id".*?"deleted/documents"\."scope" = 1)|("deleted/documents"\."scope" = 1.*?"deleted/documents"\."user_id" = "users"\."id"))')}
         INNER JOIN "comments" ON "comments"."post_id" = "deleted/documents"."id"
       SQL
     end
 
     it 'should not apply the same reframe to subsequent relations' do
       decoy_sql = User.joins(posts: :comments).reframe(posts: Post::Deleted).to_sql
-      doc_join = rx('"documents"\."user_id" = "users"\."id".*?"documents"\."scope" = 1')
+      doc_join = rx('(("documents"\."user_id" = "users"\."id".*?"documents"\."scope" = 1)|("documents"\."scope" = 1.*?"documents"\."user_id" = "users"\."id"))')
 
       expect(User.joins(posts: :comments).to_sql).to match_sql(<<~SQL)
         WITH "users" AS (SELECT "users".* FROM "users" WHERE #{rx('.*?')}),

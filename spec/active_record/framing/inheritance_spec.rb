@@ -10,7 +10,7 @@ describe 'Frame Inheritance' do
         type_condition = rx('"users"\."type" (IN|=) .+')
 
         expect(Admin.all.to_sql).to match_sql(<<~SQL)
-          WITH "users" AS (SELECT "users".* FROM "users" WHERE ("users"."kind" IS NOT NULL))
+          WITH "users" AS (SELECT "users".* FROM "users" WHERE #{rx('\\(?')}"users"."kind" IS NOT NULL#{rx('\\)?')})
           SELECT "users".* FROM "users" WHERE #{type_condition}
         SQL
       end

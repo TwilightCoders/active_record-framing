@@ -31,7 +31,7 @@ describe ActiveRecord::Framing::Relation do
     it 'handles a join on a model with a default frame' do
       # WHERE clause in CTE may vary in order/format across Rails versions, but JOIN conditions should be specific
       where_pattern = rx('.*?')  # Flexible - order may vary
-      join_pattern = rx('"documents"\."user_id" = "users"\."id".*?"documents"\."scope" = 1')  # Specific - both conditions must be present
+      join_pattern = rx('(("documents"\."user_id" = "users"\."id".*?"documents"\."scope" = 1)|("documents"\."scope" = 1.*?"documents"\."user_id" = "users"\."id"))')  # Order-agnostic for Rails 5/6
 
       expect(User.joins(:posts).to_sql).to match_sql(<<~SQL)
         WITH "users" AS (SELECT "users".* FROM "users" WHERE #{where_pattern}),
@@ -61,7 +61,7 @@ describe ActiveRecord::Framing::Relation do
     end
 
     it 'handles a join on a model with a default frame' do
-      join_pattern = rx('"documents"\."user_id" = "all/users"\."id".*?"documents"\."scope" = 1')
+      join_pattern = rx('(("documents"\."user_id" = "all/users"\."id".*?"documents"\."scope" = 1)|("documents"\."scope" = 1.*?"documents"\."user_id" = "all/users"\."id"))')
 
       expect(User::All.joins(:posts).to_sql).to match_sql(<<~SQL)
         WITH "all/users" AS (SELECT "users".* FROM "users"),

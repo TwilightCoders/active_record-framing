@@ -3,7 +3,7 @@ require "spec_helper"
 describe ActiveRecord::Framing::Named do
 
   it 'handles basic joins' do
-    user_join = rx('"users"\."id" = "deleted/documents"\."user_id".*?"users"\."kind" = 1')
+    user_join = rx('(("users"\."id" = "deleted/documents"\."user_id".*?"users"\."kind" = 1)|("users"\."kind" = 1.*?"users"\."id" = "deleted/documents"\."user_id"))')
 
     expect(Post::Deleted.joins(:user, :comments).to_sql).to match_sql(<<~SQL)
       WITH "deleted/documents" AS (SELECT "documents".* FROM "documents" WHERE #{rx('.*?')}),
@@ -16,7 +16,7 @@ describe ActiveRecord::Framing::Named do
 
   it 'handles basic eager_loads' do
     sql = Post::Deleted.eager_load(:user, :comments).to_sql
-    user_join = rx('"users"\."id" = "deleted/documents"\."user_id".*?"users"\."kind" = 1')
+    user_join = rx('(("users"\."id" = "deleted/documents"\."user_id".*?"users"\."kind" = 1)|("users"\."kind" = 1.*?"users"\."id" = "deleted/documents"\."user_id"))')
 
     expect(sql).to match_sql(<<~SQL)
       WITH "deleted/documents" AS (SELECT "documents".* FROM "documents" WHERE #{rx('.*?')}),

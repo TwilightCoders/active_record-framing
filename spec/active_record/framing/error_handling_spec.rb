@@ -2,6 +2,17 @@ require "spec_helper"
 
 describe 'Error Handling' do
 
+  # Clean up any frames defined during error tests to prevent pollution
+  after(:each) do
+    # List of frames added by error tests (not original User/Post frames)
+    test_frames = [:boom, :nil_frame, :empty, :unscope_frame, :bad_return, :bad_sql, :collision_test, :frame_a, :bad_column, :truly_empty, :no_filter, :find_example]
+    test_frames.each do |frame_name|
+      User.frames.delete(frame_name) if User.frames.key?(frame_name)
+      const_name = frame_name.to_s.camelize.to_sym
+      User.send(:remove_const, const_name) if User.const_defined?(const_name, false)
+    end
+  end
+
   context 'invalid frame definitions' do
     
     it 'raises on invalid frame name with special characters' do
