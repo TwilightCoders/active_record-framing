@@ -68,7 +68,7 @@ describe 'ActiveRecord Method Integration' do
 
     describe '.pick' do
       it 'works with frames' do
-        skip "pick method added in Rails 6.0" if ActiveRecord::VERSION::MAJOR < 6
+        skip_unless_rails('>= 6.0')
         name = User.order(:kind).pick(:name)
         expect(name).to eq('Alice')
       end

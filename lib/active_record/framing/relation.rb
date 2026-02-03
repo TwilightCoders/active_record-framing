@@ -37,7 +37,7 @@ module ActiveRecord
         end
 
         super.tap do |ar|
-          unless ignore_default_frame?
+          unless ignore_frames?
             build_frames(ar)
 
             # IMPORTANT: Cache binds BEFORE compiling to Arel
@@ -164,7 +164,7 @@ module ActiveRecord
       # Override bound_attributes to include bind values from frame Relations.
       # Frame bind values must come first because the CTE is defined first in the SQL.
       def bound_attributes
-        if ignore_default_frame? || frame_clause.empty?
+        if ignore_frames? || frame_clause.empty?
           super
         else
           # Prepend frame binds to the regular bound_attributes
@@ -263,12 +263,12 @@ module ActiveRecord
         saved_frame = klass.current_frame
         klass.current_frame = nil
 
-        FrameRegistry.set_value_for(:ignore_default_frame, klass.base_class, true)
+        FrameRegistry.set_value_for(:ignore_frames, klass.base_class, true)
         result = spawn.tap do |r|
           r.frame_clause = FrameClause.new({})
           r.table = klass.unframed_arel_table
         end
-        FrameRegistry.set_value_for(:ignore_default_frame, klass.base_class, false)
+        FrameRegistry.set_value_for(:ignore_frames, klass.base_class, false)
 
         result
       ensure

@@ -22,7 +22,29 @@ ensure
   ActiveRecord::Base.logger = orig
 end
 
+# Version-aware spec helpers
+module VersionHelpers
+  def rails_version
+    @rails_version ||= Gem::Version.new(ActiveRecord.version.to_s)
+  end
+
+  def skip_unless_rails(requirement)
+    required = Gem::Requirement.new(requirement)
+    unless required.satisfied_by?(rails_version)
+      skip("Requires Rails #{requirement}, running #{rails_version}")
+    end
+  end
+
+  def pending_unless_rails(requirement, message = nil)
+    required = Gem::Requirement.new(requirement)
+    unless required.satisfied_by?(rails_version)
+      pending(message || "Requires Rails #{requirement}, running #{rails_version}")
+    end
+  end
+end
+
 RSpec.configure do |config|
+  config.include VersionHelpers
   config.order = 'random'
 
   config.example_status_persistence_file_path = 'spec/results.txt'
@@ -39,6 +61,7 @@ RSpec.configure do |config|
     models = ObjectSpace.each_object(Class).select { |klass| klass < ActiveRecord::Base }
     models.each do |klass|
       klass.current_frame = nil rescue nil
+      ActiveRecord::Framing::FrameRegistry.set_value_for(:ignore_frames, klass.base_class, false) rescue nil
     end
   end
 

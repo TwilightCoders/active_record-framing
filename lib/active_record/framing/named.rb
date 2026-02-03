@@ -5,6 +5,20 @@ module ActiveRecord
   module Framing
     module Named
 
+      # Frame names that would be confusing or misleading
+      # Note: Frames create CONSTANTS (User::All) via const_missing, not methods,
+      # so they don't actually shadow ActiveRecord methods like User.all
+      # We only flag truly confusing names that could mislead developers
+      DANGEROUS_FRAME_NAMES = [
+        # :all is actually fine - User::All constant doesn't shadow User.all method
+        # Most AR method names are fine for the same reason
+        # dangerous_class_const? already handles constant collisions
+      ].freeze
+
+      def dangerous_frame_name?(name)
+        DANGEROUS_FRAME_NAMES.include?(name.to_sym)
+      end
+
       # Returns an ActiveRecord::Relation frame object.
       #
       #   posts = Post.all
@@ -200,6 +214,12 @@ module ActiveRecord
           raise ArgumentError, "You tried to define a frame named \"#{constant}\" " \
             "on the model \"#{self.constant}\", but there is a constant already " \
             "defined with the same name."
+        end
+
+        if dangerous_frame_name?(frame_name)
+          raise ArgumentError, "You tried to define a frame named :#{frame_name}, " \
+            "but this conflicts with an ActiveRecord method. " \
+            "Reserved names: #{DANGEROUS_FRAME_NAMES.join(', ')}"
         end
 
         valid_frame_name?(constant)

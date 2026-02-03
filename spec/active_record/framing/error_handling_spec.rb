@@ -16,13 +16,19 @@ describe 'Error Handling' do
       }.to raise_error(NameError)
     end
 
-    it 'raises on frame name that conflicts with ActiveRecord methods' do
-      # If no validation exists, this is a potential bug to note
-      pending("No validation for reserved method names - should add this")
-      # These would be dangerous
+    it 'allows frame names that match ActiveRecord methods' do
+      # Frames create CONSTANTS (User::Find) via const_missing, not methods
+      # So they don't actually shadow AR methods like User.find
+      # User already has `frame :all, -> {}` which creates User::All constant
+      # This doesn't prevent User.all (method) from working
       expect {
-        User.frame :find, -> {}
-      }.to raise_error(ArgumentError, /reserved|conflict/)
+        TestModel = Class.new(ActiveRecord::Base) do
+          self.table_name = 'users'
+          frame :find_example, -> { where(kind: 1) }
+        end
+      }.not_to raise_error
+
+      # dangerous_class_const? handles actual constant collisions
     end
 
   end

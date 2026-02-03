@@ -57,7 +57,13 @@ module ActiveRecord
       # This ensures that when building JOINs for reframed associations,
       # the framed table (e.g., "deleted/documents") is used instead of the base table (e.g., "documents").
       # This is the KEY to eliminating invasive tree-walking (fix_right_side).
+      #
+      # When ignoring frames (ignore_frames = true), we must return the base table.
+      # Otherwise, if a frame is active when default_scope is evaluated, the scope will cache
+      # the framed table name (e.g., "all/users") instead of the base table ("users"),
+      # causing table reference pollution.
       def arel_table
+        return super if ignore_frames?
         current_frame&.arel_table || super
       end
 
@@ -72,14 +78,22 @@ module ActiveRecord
         case const_name
         when *frames.keys
           columns
-          frames[const_name].call
+          result = frames[const_name].call
+          # Clear all scope/predicate caches to prevent table name pollution
+          # During frame building, these may be compiled with a polluted ModelProxy table
+          base = base_class
+          base.instance_variable_set(:@default_scopes, nil)
+          base.instance_variable_set(:@default_scope, nil)
+          base.instance_variable_set(:@predicate_builder, nil)
+          base.instance_variable_set(:@table_metadata, nil)
+          result
         else
           super
         end
       end
     end
 
-    # This class stores the +:current_frame+ and +:ignore_default_frame+ values
+    # This class stores the +:current_frame+ and +:ignore_frames+ values
     # for different classes. The registry is stored as a thread local, which is
     # accessed through +FrameRegistry.current+.
     #
@@ -104,7 +118,7 @@ module ActiveRecord
     class FrameRegistry # :nodoc:
       extend ActiveSupport::PerThreadRegistry
 
-      VALID_SCOPE_TYPES = [:current_frame, :ignore_default_frame]
+      VALID_SCOPE_TYPES = [:current_frame, :ignore_frames]
 
       attr_accessor :disabled
 

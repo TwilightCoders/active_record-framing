@@ -38,19 +38,19 @@ module ActiveRecord
           unframed_all.unframed(&block)
         end
 
-        def ignore_default_frame?
-          FrameRegistry.value_for(:ignore_default_frame, base_class)
+        def ignore_frames?
+          FrameRegistry.value_for(:ignore_frames, base_class)
         end
 
-        # The ignore_default_frame flag is used to prevent an infinite recursion
+        # The ignore_frames flag is used to prevent an infinite recursion
         # situation where a default frame references a frame which has a default
         # frame which references a frame...
         def evaluate_default_frame
-          return if ignore_default_frame?
-          self.ignore_default_frame = true
+          return if ignore_frames?
+          self.ignore_frames = true
           yield
         ensure
-          self.ignore_default_frame = false
+          self.ignore_frames = false
         end
 
         # Scopes (defualts) should be built/considered
@@ -101,8 +101,8 @@ module ActiveRecord
 
       private
 
-        def ignore_default_frame=(ignore)
-          FrameRegistry.set_value_for(:ignore_default_frame, base_class, ignore)
+        def ignore_frames=(value)
+          FrameRegistry.set_value_for(:ignore_frames, base_class, value)
         end
 
         # Use this macro in your model to set a default frame for all operations on
@@ -182,7 +182,7 @@ module ActiveRecord
 
         def build_default_frame(base_rel = nil)
           return if abstract_class?
-          return if ignore_default_frame?
+          return if ignore_frames?
           return if ActiveRecord::Framing.disabled?
 
           frames_to_build = if default_frame_override?
