@@ -74,18 +74,41 @@ module ActiveRecord
         Arel::Table.new(table_name, type_caster: type_caster)
       end
 
+      # Override predicate_builder to be thread-local.
+      # This prevents pollution when current_frame (which is thread-local) affects
+      # how the predicate_builder is initialized.
+      def predicate_builder
+        FrameRegistry.value_for(:predicate_builder, self) || begin
+          pb = super
+          FrameRegistry.set_value_for(:predicate_builder, self, pb)
+          pb
+        end
+      end
+
+      # Override table_metadata to be thread-local for the same reason.
+      def table_metadata
+        FrameRegistry.value_for(:table_metadata, self) || begin
+          tm = super
+          FrameRegistry.set_value_for(:table_metadata, self, tm)
+          tm
+        end
+      end
+
       def const_missing(const_name)
         case const_name
         when *frames.keys
           columns
           result = frames[const_name].call
-          # Clear all scope/predicate caches to prevent table name pollution
-          # During frame building, these may be compiled with a polluted ModelProxy table
+          # Clear current_frame and thread-local caches to prevent pollution.
+          # predicate_builder and table_metadata are now thread-local (via FrameRegistry),
+          # but we still clear them to ensure fresh compilation after frame building.
           base = base_class
+          base.current_frame = nil
+          FrameRegistry.set_value_for(:predicate_builder, base, nil)
+          FrameRegistry.set_value_for(:table_metadata, base, nil)
+          # Also clear class-level default_scope caches
           base.instance_variable_set(:@default_scopes, nil)
           base.instance_variable_set(:@default_scope, nil)
-          base.instance_variable_set(:@predicate_builder, nil)
-          base.instance_variable_set(:@table_metadata, nil)
           result
         else
           super
@@ -118,7 +141,7 @@ module ActiveRecord
     class FrameRegistry # :nodoc:
       extend ActiveSupport::PerThreadRegistry
 
-      VALID_SCOPE_TYPES = [:current_frame, :ignore_frames]
+      VALID_SCOPE_TYPES = [:current_frame, :ignore_frames, :predicate_builder, :table_metadata]
 
       attr_accessor :disabled
 
