@@ -10,9 +10,9 @@ describe ActiveRecord::Framing::QueryMethods do
         # This proved particularly problematic for
 
         user = User.unscoped.create(name: 'foo', kind: 1)
-        # Admin inherits User's default_scope (kind: 1), so use kind: 1 for admin too
-        # Otherwise the default_scope will filter it out
-        admin = Admin.unscoped.create(name: 'foo', kind: 1)
+        # Admin has default_scope { where(kind: 2) }, so create with kind: 2
+        # to match the default_scope filter in JOINs
+        admin = Admin.unscoped.create(name: 'foo', kind: 2)
         post = Post.unscoped.create(title: 'hi', user: user, deleted_at: Time.now, scope: 1)
         comment = Comment.create(post: post, user: admin)
 
