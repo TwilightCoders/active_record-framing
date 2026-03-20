@@ -4,7 +4,11 @@ require 'logger'  # Rails 6.0 requires explicit Logger require
 require 'database_cleaner'
 require 'combustion'
 require 'pry'
-require 'colorize'
+begin
+  require 'colorize'
+rescue LoadError
+  # colorize is optional
+end
 
 require 'simplecov'
 SimpleCov.start do

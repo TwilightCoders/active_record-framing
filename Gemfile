@@ -2,6 +2,5 @@ source 'https://rubygems.org'
 
 gemspec
 
-group :test do
-  gem 'anbt-sql-formatter'
-end
+gem 'activerecord', '~> 7.1.0'
+gem 'bigdecimal', '~> 3.1'
