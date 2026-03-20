@@ -1,45 +1,31 @@
 # Arel::Table engine accessor compatibility
 #
-# In Arel 7+ (Rails 5.1+), Arel::Table stores the "engine" (model class)
-# inside its type_caster, not as a direct @engine attribute.
-# We need an engine= setter for reframing JOINs.
-#
-# In Rails 7.0+, Arel is vendored into ActiveRecord and doesn't have
-# its own VERSION constant.
+# Provides a uniform way to get the model class from an Arel::Table,
+# regardless of how Arel stores it internally across versions.
 
-arel_version = if defined?(Arel::VERSION)
-  Gem::Version.new(Arel::VERSION)
-else
-  # Arel vendored into AR — use AR version as proxy
-  Gem::Version.new(ActiveRecord.version.to_s)
+module ActiveRecord
+  module Framing
+    module ArelCompat
+      # Get the AR model class from an Arel::Table
+      def self.engine_for(arel_table)
+        if arel_table.instance_variable_defined?(:@klass)
+          # Rails 7.0+: stored directly as @klass
+          arel_table.instance_variable_get(:@klass)
+        elsif arel_table.respond_to?(:engine)
+          # Rails 5.x-6.x: stored as engine
+          arel_table.engine
+        elsif arel_table.respond_to?(:type_caster, true)
+          tc = arel_table.send(:type_caster)
+          tc.respond_to?(:send) ? (tc.send(:types) rescue nil) : nil
+        end
+      end
+    end
+  end
 end
 
-if arel_version >= Gem::Version.new('7.0')
+# Ensure Arel::Table#clone preserves the name for CTE table creation
+unless Arel::Table.method_defined?(:name=)
   Arel::Table.class_eval do
-    def engine
-      if type_caster.respond_to?(:send, true)
-        type_caster.send(:types) rescue nil
-      end
-    end
-
-    def engine=(value)
-      if @type_caster.respond_to?(:instance_variable_set)
-        @type_caster.instance_variable_set(:@types, value)
-      end
-    end
-  end
-
-  Arel::Nodes::TableAlias.class_eval do
-    def engine
-      if left.respond_to?(:type_caster, true)
-        left.send(:type_caster).send(:types) rescue nil
-      end
-    end
-  end
-else
-  Arel::Table.class_eval do
-    def engine=(value)
-      @engine = value
-    end
+    attr_writer :name
   end
 end

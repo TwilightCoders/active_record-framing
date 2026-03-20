@@ -102,10 +102,20 @@ module ActiveRecord
       end
 
       def derive_engine(source_table, associations)
-        if source_table.respond_to?(:engine) && source_table.engine == ::ActiveRecord::Base
-          associations[source_table.name]
-        elsif associations.key?(source_table.name.to_sym)
-          associations[source_table.name.to_sym]&.klass
+        engine = ArelCompat.engine_for(source_table)
+
+        if engine.nil? || engine == ::ActiveRecord::Base
+          # No engine or generic engine — look up by table name in associations
+          assoc = associations.values.detect { |a|
+            begin
+              a.klass.table_name == source_table.name
+            rescue NameError
+              false
+            end
+          }
+          assoc&.klass
+        elsif engine < ::ActiveRecord::Base
+          engine
         end
       end
 

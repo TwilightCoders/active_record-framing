@@ -10,7 +10,7 @@ module ActiveRecord
         DANGEROUS_FRAME_NAMES.include?(name.to_sym)
       end
 
-      def all
+      def all(*)
         if (cf = current_frame)
           ignore_type_condition do
             unframed_all.merge!(cf)

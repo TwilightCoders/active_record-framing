@@ -9,16 +9,11 @@ module ActiveRecord
 
       def unscoped
         super.tap do |rel|
-          # Reset to base table, not the custom frame table
-          # unscoped/unframed should query the base table, not the CTE table
           base_table = __getobj__.arel_table
           rel.instance_variable_set(:@table, base_table)
         end
       end
 
-      # NOTE: Arel 8.x / Rails 5.1 compatibility
-      # Method exists on AR::Model, but default value for table attribute
-      # is gathered in the wrong context without this proxy override
       def arel_attribute(column_name, table = arel_table)
         super
       end
@@ -43,12 +38,18 @@ module ActiveRecord
         @reframe_values = value
       end
 
-      def send(*args)
-        __getobj__.send(*args)
-      end
-
       def arel_table
         @table
+      end
+
+      # Ensure ModelProxy behaves like a Class for type-checking
+      def ===(other)
+        __getobj__ === other
+      end
+
+      # Delegate class identity checks to the wrapped class
+      def name
+        __getobj__.name
       end
     end
   end

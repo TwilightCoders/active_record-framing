@@ -20,9 +20,9 @@ describe 'Frame Inheritance' do
         user = User.create(name: 'test', kind: 1)
 
         # Admin should only return Admin records, with parent frame applied
-        result = Admin.all
-        expect(result).to include(admin)
-        expect(result).not_to include(user)
+        result = Admin.all.to_a
+        expect(result.map(&:id)).to include(admin.id)
+        expect(result.map(&:id)).not_to include(user.id)
       end
     end
 

@@ -284,15 +284,14 @@ describe 'ActiveRecord Method Integration' do
       posts = Post.where(user_id: user_ids)
 
       expect(posts.to_sql).to include('WITH')
-      # Post's default_frame filters for deleted_at IS NULL, so only active post is returned
-      expect(posts).to include(@active_post)
-      expect(posts).not_to include(@deleted_post)
+      results = posts.to_a
+      expect(results.map(&:id)).to include(@active_post.id)
+      expect(results.map(&:id)).not_to include(@deleted_post.id)
     end
 
     it 'works with EXISTS subqueries' do
-      # This is tricky - frames in subqueries
       users_with_posts = User.where('EXISTS (SELECT 1 FROM documents WHERE documents.user_id = users.id)')
-      expect(users_with_posts).to include(@user)
+      expect(users_with_posts.to_a.map(&:id)).to include(@user.id)
     end
 
   end
