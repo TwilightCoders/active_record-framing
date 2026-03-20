@@ -14,6 +14,26 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Rails 7.2
+          - { ruby: '3.3', gemfile: 'gemfiles/activerecord-7.2.Gemfile', postgres: '17' }
+          - { ruby: '3.1', gemfile: 'gemfiles/activerecord-7.2.Gemfile', postgres: '15' }
+          # Rails 7.1
+          - { ruby: '3.3', gemfile: 'gemfiles/activerecord-7.1.Gemfile', postgres: '17' }
+          - { ruby: '3.0', gemfile: 'gemfiles/activerecord-7.1.Gemfile', postgres: '15' }
+          # Rails 7.0
+          - { ruby: '3.2', gemfile: 'gemfiles/activerecord-7.0.Gemfile', postgres: '17' }
+          - { ruby: '3.0', gemfile: 'gemfiles/activerecord-7.0.Gemfile', postgres: '15' }
+          # Rails 6.1
+          - { ruby: '3.0', gemfile: 'gemfiles/activerecord-6.1.Gemfile', postgres: '15' }
+          # Rails 6.0
+          - { ruby: '2.7', gemfile: 'gemfiles/activerecord-6.0.Gemfile', postgres: '15' }
+          # Rails 5.2
+          - { ruby: '2.7', gemfile: 'gemfiles/activerecord-5.2.Gemfile', postgres: '15' }
+
     services:
       postgres:
         image: postgres:${{ matrix.postgres }}
@@ -27,44 +47,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
-    strategy:
-      fail-fast: false
-      matrix:
-        ruby: ['3.0', '3.1', '3.2', '3.3']
-        gemfile:
-          - gemfiles/activerecord-5.2.Gemfile
-          - gemfiles/activerecord-6.0.Gemfile
-          - gemfiles/activerecord-6.1.Gemfile
-          - gemfiles/activerecord-7.0.Gemfile
-          - gemfiles/activerecord-7.1.Gemfile
-          - gemfiles/activerecord-7.2.Gemfile
-        postgres: ['15', '17']
-        exclude:
-          # Rails 5.2 requires Ruby < 3.1
-          - ruby: '3.1'
-            gemfile: gemfiles/activerecord-5.2.Gemfile
-          - ruby: '3.2'
-            gemfile: gemfiles/activerecord-5.2.Gemfile
-          - ruby: '3.3'
-            gemfile: gemfiles/activerecord-5.2.Gemfile
-          # Rails 6.0 requires Ruby < 3.1
-          - ruby: '3.1'
-            gemfile: gemfiles/activerecord-6.0.Gemfile
-          - ruby: '3.2'
-            gemfile: gemfiles/activerecord-6.0.Gemfile
-          - ruby: '3.3'
-            gemfile: gemfiles/activerecord-6.0.Gemfile
-          # Reduce PG matrix — only test PG 17 for most combos
-          - postgres: '15'
-        include:
-          # Ensure PG 15 coverage on latest Rails
-          - ruby: '3.3'
-            gemfile: gemfiles/activerecord-7.1.Gemfile
-            postgres: '15'
-          - ruby: '3.2'
-            gemfile: gemfiles/activerecord-7.0.Gemfile
-            postgres: '15'
 
     env:
       BUNDLE_GEMFILE: ${{ matrix.gemfile }}
