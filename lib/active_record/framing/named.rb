@@ -21,14 +21,12 @@ module ActiveRecord
       end
 
       def relation_without_type_condition
-        (@relation_without_type_condition ||= ignore_type_condition do
-          relation.freeze
-        end).dup
+        (@relation_without_type_condition ||= ignore_type_condition { relation.freeze }).dup
       end
 
       def relation_with_default_scope
-        klass_for_relation = (self < ActiveRecord::Base && base_class != self) ? base_class : self
-        klass_for_relation.unscoped.spawn
+        klass = (self < ActiveRecord::Base && base_class != self) ? base_class : self
+        klass.unscoped.spawn
       end
 
       def ignore_type_condition
@@ -44,7 +42,7 @@ module ActiveRecord
         end
       end
 
-      def default_framed(my_frame = relation_without_type_condition)
+      def default_framed
         build_default_frame(relation_with_default_scope) || unframed_all
       end
 
@@ -56,37 +54,22 @@ module ActiveRecord
         constant = frame_name.to_s.classify.to_sym
 
         if dangerous_class_const?(constant)
-          raise ArgumentError, "You tried to define a frame named \"#{constant}\" " \
-            "on the model \"#{self.name}\", but there is a constant already " \
-            "defined with the same name."
+          raise ArgumentError, "Frame name \"#{constant}\" conflicts with an existing constant on #{self.name}"
         end
 
         if dangerous_frame_name?(frame_name)
-          raise ArgumentError, "You tried to define a frame named :#{frame_name}, " \
-            "but this conflicts with an ActiveRecord method. " \
-            "Reserved names: #{DANGEROUS_FRAME_NAMES.join(', ')}"
+          raise ArgumentError, "Frame name :#{frame_name} is reserved"
         end
 
-        valid_frame_name?(constant)
-
-        arel_tn = "#{frame_name}/#{self.table_name}"
-
-        at = arel_table.clone.tap do |a_t|
-          a_t.name = arel_tn
+        if frames.key?(constant) && logger
+          logger.warn "Overwriting existing frame #{self.name}::#{constant}"
         end
+
+        arel_tn = "#{frame_name}/#{table_name}"
+        at = arel_table.clone.tap { |t| t.name = arel_tn }
 
         frames[constant] = Proc.new do
-          rel = relation
-          build_frame([body].compact, at, rel, &block)
-        end
-      end
-
-      private
-
-      def valid_frame_name?(name)
-        if frames.key?(name) && logger
-          logger.warn "Creating frame :#{name}. " \
-            "Overwriting existing const #{self.name}::#{name}."
+          build_frame([body].compact, at, relation, &block)
         end
       end
     end

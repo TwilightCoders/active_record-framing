@@ -37,7 +37,7 @@ describe ActiveRecord::Framing::Named do
   end
 
   it 'warns if creating another frame by the same name' do
-    expect(Post.logger).to receive(:warn).with("Creating frame :Test. Overwriting existing const Post::Test.")
+    expect(Post.logger).to receive(:warn).with("Overwriting existing frame Post::Test")
     Post.class_eval do
       frame :test, -> {}
       frame :test, -> {}

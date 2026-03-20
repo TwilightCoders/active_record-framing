@@ -31,7 +31,7 @@ module ActiveRecord
       FrameRegistry.instance.disabled == true
     end
 
-    module ClassMethods # :nodoc:
+    module ClassMethods
       def current_frame(skip_inherited_frame: false)
         FrameRegistry.value_for(:current_frame, self, skip_inherited_frame)
       end
@@ -70,16 +70,14 @@ module ActiveRecord
       end
 
       def const_missing(const_name)
-        case const_name
-        when *frames.keys
+        if frames.key?(const_name)
           columns
           result = frames[const_name].call
+          # Clean up thread-local state after frame construction
           base = base_class
           base.current_frame = nil
           FrameRegistry.set_value_for(:predicate_builder, base, nil)
           FrameRegistry.set_value_for(:table_metadata, base, nil)
-          base.instance_variable_set(:@default_scopes, nil)
-          base.instance_variable_set(:@default_scope, nil)
           result
         else
           super
@@ -88,12 +86,9 @@ module ActiveRecord
     end
 
     # Thread-local registry for frame state.
-    #
-    # Replaces ActiveSupport::PerThreadRegistry (removed in Rails 7.1)
-    # with a simple Thread.current-based approach. Each thread gets its
-    # own isolated registry instance.
+    # Each thread gets its own isolated instance via Thread.current.
     class FrameRegistry
-      VALID_SCOPE_TYPES = [:current_frame, :ignore_frames, :predicate_builder, :table_metadata]
+      VALID_SCOPE_TYPES = [:current_frame, :ignore_frames, :predicate_builder, :table_metadata].freeze
       THREAD_KEY = :active_record_framing_registry
 
       attr_accessor :disabled
@@ -103,7 +98,6 @@ module ActiveRecord
         @disabled = false
       end
 
-      # Get the per-thread instance
       def self.instance
         Thread.current[THREAD_KEY] ||= new
       end
@@ -117,27 +111,28 @@ module ActiveRecord
       end
 
       def value_for(frame_type, model, skip_inherited_frame = false)
-        raise_invalid_frame_type!(frame_type)
+        validate_frame_type!(frame_type)
         return @registry[frame_type][model] if skip_inherited_frame
-        while model < ::ActiveRecord::Base
-          value = @registry[frame_type][model]
-          return value if value
-          model = model.superclass
+
+        klass = model
+        while klass < ::ActiveRecord::Base
+          val = @registry[frame_type][klass]
+          return val if val
+          klass = klass.superclass
         end
         nil
       end
 
       def set_value_for(frame_type, model, value)
-        raise_invalid_frame_type!(frame_type)
+        validate_frame_type!(frame_type)
         @registry[frame_type][model] = value
       end
 
       private
 
-      def raise_invalid_frame_type!(frame_type)
-        unless VALID_SCOPE_TYPES.include?(frame_type)
-          raise ArgumentError, "Invalid frame type '#{frame_type}' sent to the registry. Frame types must be included in VALID_SCOPE_TYPES"
-        end
+      def validate_frame_type!(frame_type)
+        return if VALID_SCOPE_TYPES.include?(frame_type)
+        raise ArgumentError, "Invalid frame type '#{frame_type}'. Valid: #{VALID_SCOPE_TYPES.join(', ')}"
       end
     end
   end
