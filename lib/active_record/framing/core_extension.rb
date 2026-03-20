@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
-require "active_support/per_thread_registry"
 require "active_record/framing/default"
 require "active_record/framing/named"
-# require "active_record/framing/associations"
 
 module ActiveRecord
   module Framing
@@ -11,10 +9,7 @@ module ActiveRecord
     def self.prepended(subclass)
       subclass.singleton_class.class_eval do
         alias_method :unframed_all, :all
-        # NOTE: not for 4.2
         alias_method :unframed_scope_for_association, :scope_for_association if subclass.respond_to?(:scope_for_association)
-
-        # Subclasses need to be able to call its parent's
         protected :relation
       end
 
@@ -22,7 +17,6 @@ module ActiveRecord
       subclass.extend Named
       subclass.include AttributeMethods
       subclass.extend ClassMethods
-      # subclass.extend Associations
     end
 
     def self.disable
@@ -37,13 +31,6 @@ module ActiveRecord
       FrameRegistry.instance.disabled == true
     end
 
-    class Foo
-
-      def self.whatever
-        @whatever
-      end
-    end
-
     module ClassMethods # :nodoc:
       def current_frame(skip_inherited_frame: false)
         FrameRegistry.value_for(:current_frame, self, skip_inherited_frame)
@@ -53,30 +40,19 @@ module ActiveRecord
         FrameRegistry.set_value_for(:current_frame, self, frame)
       end
 
-      # Override arel_table to use current_frame's table if set.
-      # This ensures that when building JOINs for reframed associations,
-      # the framed table (e.g., "deleted/documents") is used instead of the base table (e.g., "documents").
-      # This is the KEY to eliminating invasive tree-walking (fix_right_side).
-      #
-      # When ignoring frames (ignore_frames = true), we must return the base table.
-      # Otherwise, if a frame is active when default_scope is evaluated, the scope will cache
-      # the framed table name (e.g., "all/users") instead of the base table ("users"),
-      # causing table reference pollution.
       def arel_table
         return super if ignore_frames?
         current_frame&.arel_table || super
       end
 
-      # Returns the base Arel::Table, bypassing any current_frame.
-      # Always constructs a fresh table from table_name, ignoring frame overrides.
-      # Works for both Models and ModelProxy (through SimpleDelegator).
       def unframed_arel_table
-        Arel::Table.new(table_name, type_caster: type_caster)
+        if respond_to?(:type_caster, true)
+          Arel::Table.new(table_name, type_caster: send(:type_caster))
+        else
+          Arel::Table.new(table_name)
+        end
       end
 
-      # Override predicate_builder to be thread-local.
-      # This prevents pollution when current_frame (which is thread-local) affects
-      # how the predicate_builder is initialized.
       def predicate_builder
         FrameRegistry.value_for(:predicate_builder, self) || begin
           pb = super
@@ -85,7 +61,6 @@ module ActiveRecord
         end
       end
 
-      # Override table_metadata to be thread-local for the same reason.
       def table_metadata
         FrameRegistry.value_for(:table_metadata, self) || begin
           tm = super
@@ -99,14 +74,10 @@ module ActiveRecord
         when *frames.keys
           columns
           result = frames[const_name].call
-          # Clear current_frame and thread-local caches to prevent pollution.
-          # predicate_builder and table_metadata are now thread-local (via FrameRegistry),
-          # but we still clear them to ensure fresh compilation after frame building.
           base = base_class
           base.current_frame = nil
           FrameRegistry.set_value_for(:predicate_builder, base, nil)
           FrameRegistry.set_value_for(:table_metadata, base, nil)
-          # Also clear class-level default_scope caches
           base.instance_variable_set(:@default_scopes, nil)
           base.instance_variable_set(:@default_scope, nil)
           result
@@ -116,32 +87,14 @@ module ActiveRecord
       end
     end
 
-    # This class stores the +:current_frame+ and +:ignore_frames+ values
-    # for different classes. The registry is stored as a thread local, which is
-    # accessed through +FrameRegistry.current+.
+    # Thread-local registry for frame state.
     #
-    # This class allows you to store and get the frame values on different
-    # classes and different types of frames. For example, if you are attempting
-    # to get the current_frame for the +Board+ model, then you would use the
-    # following code:
-    #
-    #   registry = ActiveRecord::Framing::FrameRegistry
-    #   registry.set_value_for(:current_frame, Board, some_new_frame)
-    #
-    # Now when you run:
-    #
-    #   registry.value_for(:current_frame, Board)
-    #
-    # You will obtain whatever was defined in +some_new_frame+. The #value_for
-    # and #set_value_for methods are delegated to the current FrameRegistry
-    # object, so the above example code can also be called as:
-    #
-    #   ActiveRecord::Framing::FrameRegistry.set_value_for(:current_frame,
-    #       Board, some_new_frame)
-    class FrameRegistry # :nodoc:
-      extend ActiveSupport::PerThreadRegistry
-
+    # Replaces ActiveSupport::PerThreadRegistry (removed in Rails 7.1)
+    # with a simple Thread.current-based approach. Each thread gets its
+    # own isolated registry instance.
+    class FrameRegistry
       VALID_SCOPE_TYPES = [:current_frame, :ignore_frames, :predicate_builder, :table_metadata]
+      THREAD_KEY = :active_record_framing_registry
 
       attr_accessor :disabled
 
@@ -150,13 +103,22 @@ module ActiveRecord
         @disabled = false
       end
 
-      # Obtains the value for a given +scope_type+ and +model+.
-      # Walks up the class hierarchy if skip_inherited_frame is false.
+      # Get the per-thread instance
+      def self.instance
+        Thread.current[THREAD_KEY] ||= new
+      end
+
+      def self.value_for(frame_type, model, skip_inherited_frame = false)
+        instance.value_for(frame_type, model, skip_inherited_frame)
+      end
+
+      def self.set_value_for(frame_type, model, value)
+        instance.set_value_for(frame_type, model, value)
+      end
+
       def value_for(frame_type, model, skip_inherited_frame = false)
         raise_invalid_frame_type!(frame_type)
         return @registry[frame_type][model] if skip_inherited_frame
-        # Walk up the hierarchy to ActiveRecord::Base
-        # This handles abstract intermediate classes correctly
         while model < ::ActiveRecord::Base
           value = @registry[frame_type][model]
           return value if value
@@ -165,7 +127,6 @@ module ActiveRecord
         nil
       end
 
-      # Sets the +value+ for a given +frame_type+ and +model+.
       def set_value_for(frame_type, model, value)
         raise_invalid_frame_type!(frame_type)
         @registry[frame_type][model] = value
@@ -173,11 +134,11 @@ module ActiveRecord
 
       private
 
-        def raise_invalid_frame_type!(frame_type)
-          if !VALID_SCOPE_TYPES.include?(frame_type)
-            raise ArgumentError, "Invalid frame type '#{frame_type}' sent to the registry. Frame types must be included in VALID_SCOPE_TYPES"
-          end
+      def raise_invalid_frame_type!(frame_type)
+        unless VALID_SCOPE_TYPES.include?(frame_type)
+          raise ArgumentError, "Invalid frame type '#{frame_type}' sent to the registry. Frame types must be included in VALID_SCOPE_TYPES"
         end
+      end
     end
   end
 end
