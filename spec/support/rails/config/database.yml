@@ -2,4 +2,5 @@ test:
   adapter: postgresql
   encoding: unicode
   database: active_record-framing-test
+  url: <%= ENV['DATABASE_URL'] %>
   prepared_statements: false
