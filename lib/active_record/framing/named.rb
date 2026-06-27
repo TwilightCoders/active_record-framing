@@ -5,15 +5,11 @@ module ActiveRecord
   module Framing
     module Named
 
-      # Frame names that would be confusing or misleading
+      # Frame names that would be confusing or misleading.
       # Note: Frames create CONSTANTS (User::All) via const_missing, not methods,
-      # so they don't actually shadow ActiveRecord methods like User.all
-      # We only flag truly confusing names that could mislead developers
-      DANGEROUS_FRAME_NAMES = [
-        # :all is actually fine - User::All constant doesn't shadow User.all method
-        # Most AR method names are fine for the same reason
-        # dangerous_class_const? already handles constant collisions
-      ].freeze
+      # so they don't actually shadow ActiveRecord methods like User.all.
+      # dangerous_class_const? already handles actual constant collisions.
+      DANGEROUS_FRAME_NAMES = [].freeze
 
       def dangerous_frame_name?(name)
         DANGEROUS_FRAME_NAMES.include?(name.to_sym)
@@ -31,15 +27,10 @@ module ActiveRecord
       #
       # You can define a frame that applies to all finders using
       # {default_frame}[rdoc-ref:Framing::Default::ClassMethods#default_frame].
-      def all
-        unframed_all.merge(current_frame || default_framed)
-      end
-
-
-      def all
+      def all(*args, **kwargs)
         if current_frame = self.current_frame
           ignore_type_condition do
-            unframed_all.merge!(current_frame)
+            unframed_all(*args, **kwargs).merge!(current_frame)
           end
         else
           default_framed
@@ -60,22 +51,6 @@ module ActiveRecord
         klass_for_relation = (self < ActiveRecord::Base && base_class != self) ? base_class : self
         klass_for_relation.unscoped.spawn
       end
-
-      # def relation_with_default_scope_and_without_type_condition
-      #   (@relation_with_default_scope_and_without_type_condition ||= ignore_type_condition do
-      #     unframed_all.freeze
-      #   end).dup # dup doesn't copy the 'frozen'
-      # end
-
-      # def relation_without_default_scope_and_without_type_condition
-      #   (@relation_with_default_scope_and_without_type_condition ||= ignore_type_condition do
-      #     relation.freeze
-      #   end).dup # dup doesn't copy the 'frozen'
-      # end
-
-      # def relation_with_type_condition_and_without_default_scope
-      #   (@relation_with_type_condition_and_without_default_scope ||= relation.freeze).dup # dup doesn't copy the 'frozen'
-      # end
 
       # Turns off the STI condition clause
       def ignore_type_condition
@@ -227,12 +202,10 @@ module ActiveRecord
         arel_tn = "#{frame_name}/#{self.table_name}"
 
         # The interface for creating an arel_table changes between arel versions.
-        # Ultimately, we just need a copy with it's "table name" changed.
+        # Ultimately, we just need a copy with its "table name" changed.
         at = arel_table.clone.tap do |a_t|
           a_t.name = arel_tn
         end
-        # at = Arel::Table.new(arel_tn, arel_table.engine)
-        # at = Arel::Table.new(arel_tn, self)
 
         frames[constant] = Proc.new do
           # Prevents the type condition from being in the frame (CTE)

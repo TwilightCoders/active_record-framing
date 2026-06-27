@@ -65,7 +65,6 @@ module ActiveRecord
           @default_arel_table ||= arel_table.dup.tap do |at|
             at.name = sovereign_table_name
           end
-          # @default_arel_table ||= arel_table.alias(sovereign_table_name)
         end
 
       protected
@@ -155,13 +154,6 @@ module ActiveRecord
             WARN
           end
 
-          # TODO: Include default_scopes?
-          # frame(:unframed)
-
-          # default_arel_table.tap do |at|
-          #   at.name = frame_name
-          # end if frame_name
-
           self.default_frames += [frame]
         end
 
@@ -176,7 +168,6 @@ module ActiveRecord
               superclass.abstract_class = orig
             end
           end
-          # compute_table_name
           table_name
         end
 

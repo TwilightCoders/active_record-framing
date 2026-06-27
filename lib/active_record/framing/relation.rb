@@ -1,26 +1,22 @@
-require 'active_record/framing/model_proxy'
-
 module ActiveRecord
   # = Active Record \Relation
   module Framing
     module Relation
 
-      def initialize(*args)
+      def initialize(*args, **kwargs)
         super.tap do |something|
-          unless @klass.class == ModelProxy
-            # Use @table if already set (from parent relation) AND we have a frame_clause
-            # For unframed relations (no frame_clause), reset to base arel_table
-            # This ensures spawned relations preserve custom table names, but unframed resets
-            has_frames = frame_clause && !frame_clause.empty?
-            table_to_use = (has_frames && @table) ? @table : arel_table
-            @klass = ModelProxy.new(@klass, table_to_use)
-            @table = table_to_use
-          end
+          # Use @table if already set (from parent relation) AND we have a frame_clause.
+          # For unframed relations (no frame_clause), reset to base arel_table.
+          # This preserves a framed table across spawns while keeping `klass` the
+          # real model class (framed tables flow through @table + current_frame,
+          # not through a SimpleDelegator wrapper).
+          has_frames = frame_clause && !frame_clause.empty?
+          @table = (has_frames && @table) ? @table : arel_table
         end
       end
 
       def build_arel(*)
-        @klass.reframe_values = reframe_values
+        klass.reframe_values = reframe_values
 
         # Set current_frame for each reframed association BEFORE building Arel.
         # This ensures that when the target class's arel_table is called during
@@ -68,14 +64,24 @@ module ActiveRecord
         spawn
       end
 
+      # Return the relation's own (possibly framed) table instead of delegating
+      # to klass.arel_table. This terminates the recursion in the class-level
+      # arel_table override (current_frame&.arel_table), which previously relied
+      # on the ModelProxy to supply a concrete table.
+      def arel_table
+        @table || super
+      end
+
       def table=(value)
         @table = value
-        @klass.table = value
-        # Update PredicateBuilder's cached table reference
-        # PredicateBuilder's @table is a TableMetadata(klass, arel_table)
-        # We need to update it with the new arel_table so WHERE clauses use the right table name
+        # Update PredicateBuilder's cached table reference.
+        # CRITICAL: dup the PB first to avoid mutating shared instances.
+        # The PB may be shared with @relation_without_type_condition or
+        # the thread-local cache. Mutating it in-place would poison all
+        # relations that share the same PB object.
         if @predicate_builder
-          table_metadata = ::ActiveRecord::TableMetadata.new(@klass, value)
+          @predicate_builder = @predicate_builder.dup
+          table_metadata = ::ActiveRecord::TableMetadata.new(klass, value)
           @predicate_builder.instance_variable_set(:@table, table_metadata)
         end
         # Invalidate WhereClauseFactory so it gets recreated with updated PredicateBuilder
@@ -89,6 +95,14 @@ module ActiveRecord
       end
 
       def build_joins(*)
+        framing { super }
+      end
+
+      # Eager loading builds its JoinDependency root from klass.arel_table at
+      # construction time (before build_arel runs), so frame the construction
+      # to make the root resolve to the framed table. The ModelProxy used to
+      # supply this by making klass.arel_table framed unconditionally.
+      def apply_join_dependency(*args, **kwargs)
         framing { super }
       end
 
@@ -198,18 +212,18 @@ module ActiveRecord
       #
       # Please check unframed if you want to remove all frames.
       def framing(skip_default_frame: false, skip_inherited_frame: false)
-        previous_frame = klass.current_frame(skip_inherited_frame: skip_inherited_frame) unless @delegate_to_klass
+        previous_frame = klass.current_frame(skip_inherited_frame: skip_inherited_frame) unless framing_delegate_to_model?
 
         relation_to_use = skip_default_frame ? spawn_without_frames : self
 
         if block_given?
-          klass.current_frame = relation_to_use unless @delegate_to_klass
+          klass.current_frame = relation_to_use unless framing_delegate_to_model?
           yield
         else
           relation_to_use
         end
       ensure
-        klass.current_frame = previous_frame unless @delegate_to_klass
+        klass.current_frame = previous_frame unless framing_delegate_to_model?
       end
 
       # Removes all frames (including default_frame and inherited frames) from this relation.
@@ -258,6 +272,12 @@ module ActiveRecord
 
     private
 
+      # Rails 7.2 renamed Relation's @delegate_to_klass ivar to @delegate_to_model.
+      # Read whichever this activerecord version defines.
+      def framing_delegate_to_model?
+        instance_variable_defined?(:@model) ? @delegate_to_model : @delegate_to_klass
+      end
+
       # Spawns a new relation with all frames cleared.
       # Clears frame_clause, resets table to base arel_table, and temporarily clears current_frame.
       # Saves and restores current_frame to avoid polluting class-level state.
@@ -266,14 +286,12 @@ module ActiveRecord
         klass.current_frame = nil
 
         FrameRegistry.set_value_for(:ignore_frames, klass.base_class, true)
-        result = spawn.tap do |r|
+        spawn.tap do |r|
           r.frame_clause = FrameClause.new({})
           r.table = klass.unframed_arel_table
         end
-        FrameRegistry.set_value_for(:ignore_frames, klass.base_class, false)
-
-        result
       ensure
+        FrameRegistry.set_value_for(:ignore_frames, klass.base_class, false)
         klass.current_frame = saved_frame
       end
 

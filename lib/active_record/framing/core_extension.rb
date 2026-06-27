@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
-require "active_support/per_thread_registry"
 require "active_record/framing/default"
 require "active_record/framing/named"
-# require "active_record/framing/associations"
 
 module ActiveRecord
   module Framing
@@ -22,7 +20,6 @@ module ActiveRecord
       subclass.extend Named
       subclass.include AttributeMethods
       subclass.extend ClassMethods
-      # subclass.extend Associations
     end
 
     def self.disable
@@ -37,13 +34,6 @@ module ActiveRecord
       FrameRegistry.instance.disabled == true
     end
 
-    class Foo
-
-      def self.whatever
-        @whatever
-      end
-    end
-
     module ClassMethods # :nodoc:
       def current_frame(skip_inherited_frame: false)
         FrameRegistry.value_for(:current_frame, self, skip_inherited_frame)
@@ -51,6 +41,23 @@ module ActiveRecord
 
       def current_frame=(frame)
         FrameRegistry.set_value_for(:current_frame, self, frame)
+        # Invalidate cached builders - they depend on arel_table which
+        # depends on current_frame. Without this, stale table references
+        # (e.g., "bad_sql/users") survive frame transitions.
+        FrameRegistry.set_value_for(:predicate_builder, self, nil)
+        FrameRegistry.set_value_for(:table_metadata, self, nil)
+      end
+
+      # Per-class, thread-local reframe_values. A relation copies its own
+      # reframe_values onto its model here just before building Arel, so that
+      # ActiveRecord's JoinDependency (which only receives the base class, not
+      # the relation) can read them back while constructing JOINs.
+      def reframe_values
+        FrameRegistry.value_for(:reframe_values, self, true) || {}
+      end
+
+      def reframe_values=(value)
+        FrameRegistry.set_value_for(:reframe_values, self, value)
       end
 
       # Override arel_table to use current_frame's table if set.
@@ -69,25 +76,28 @@ module ActiveRecord
 
       # Returns the base Arel::Table, bypassing any current_frame.
       # Always constructs a fresh table from table_name, ignoring frame overrides.
-      # Works for both Models and ModelProxy (through SimpleDelegator).
       def unframed_arel_table
         Arel::Table.new(table_name, type_caster: type_caster)
       end
 
-      # Override predicate_builder to be thread-local.
-      # This prevents pollution when current_frame (which is thread-local) affects
-      # how the predicate_builder is initialized.
+      # Thread-local predicate_builder. Delegates to super but ensures the
+      # class-level cache is clean before doing so - AR's @predicate_builder
+      # is a ||= cache that gets permanently poisoned if initialized while
+      # a frame is active.
       def predicate_builder
         FrameRegistry.value_for(:predicate_builder, self) || begin
+          # Clear AR's class-level cache so super builds fresh from current arel_table
+          @predicate_builder = nil
           pb = super
           FrameRegistry.set_value_for(:predicate_builder, self, pb)
           pb
         end
       end
 
-      # Override table_metadata to be thread-local for the same reason.
+      # Thread-local table_metadata, same pattern as predicate_builder.
       def table_metadata
         FrameRegistry.value_for(:table_metadata, self) || begin
+          @table_metadata = nil
           tm = super
           FrameRegistry.set_value_for(:table_metadata, self, tm)
           tm
@@ -99,16 +109,9 @@ module ActiveRecord
         when *frames.keys
           columns
           result = frames[const_name].call
-          # Clear current_frame and thread-local caches to prevent pollution.
-          # predicate_builder and table_metadata are now thread-local (via FrameRegistry),
-          # but we still clear them to ensure fresh compilation after frame building.
-          base = base_class
-          base.current_frame = nil
-          FrameRegistry.set_value_for(:predicate_builder, base, nil)
-          FrameRegistry.set_value_for(:table_metadata, base, nil)
-          # Also clear class-level default_scope caches
-          base.instance_variable_set(:@default_scopes, nil)
-          base.instance_variable_set(:@default_scope, nil)
+          # Reset frame context on base class. Cache invalidation is
+          # handled automatically by current_frame= setter.
+          base_class.current_frame = nil
           result
         else
           super
@@ -139,9 +142,22 @@ module ActiveRecord
     #   ActiveRecord::Framing::FrameRegistry.set_value_for(:current_frame,
     #       Board, some_new_frame)
     class FrameRegistry # :nodoc:
-      extend ActiveSupport::PerThreadRegistry
+      # Per-thread instance, formerly provided by ActiveSupport::PerThreadRegistry
+      # (removed in Rails 7.2). Reimplemented here so framing works across the
+      # full activerecord 5.1-8.2 range without depending on that helper.
+      def self.instance
+        Thread.current[:active_record_framing_registry] ||= new
+      end
 
-      VALID_SCOPE_TYPES = [:current_frame, :ignore_frames, :predicate_builder, :table_metadata]
+      def self.value_for(frame_type, model, skip_inherited_frame = false)
+        instance.value_for(frame_type, model, skip_inherited_frame)
+      end
+
+      def self.set_value_for(frame_type, model, value)
+        instance.set_value_for(frame_type, model, value)
+      end
+
+      VALID_SCOPE_TYPES = [:current_frame, :ignore_frames, :predicate_builder, :table_metadata, :reframe_values]
 
       attr_accessor :disabled
 
