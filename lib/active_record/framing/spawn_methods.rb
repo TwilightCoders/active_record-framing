@@ -9,6 +9,17 @@ module ActiveRecord
         end
       end
 
+      private
+
+        # ActiveRecord 6.0 builds #except/#only results with Relation.create,
+        # which resets the table to the model's; keep the framed table (6.1+
+        # spawns, which already does).
+        def relation_with(values)
+          super.tap do |rel|
+            rel.table = table unless rel.table == table
+          end
+        end
+
     end
   end
 end

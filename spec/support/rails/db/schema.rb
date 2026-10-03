@@ -18,6 +18,15 @@ ActiveRecord::Schema.define do
     t.timestamp :deleted_at
   end
 
+  # A subclass of Post with its own table (as with PostgreSQL table inheritance).
+  create_table :drafts, force: true do |t|
+    t.integer :user_id
+    t.string :title
+    t.integer :scope
+    t.timestamps null: false
+    t.timestamp :deleted_at
+  end
+
   create_table :comments, force: true do |t|
     t.string :title
     t.integer :user_id

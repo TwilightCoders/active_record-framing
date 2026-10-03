@@ -105,10 +105,9 @@ module ActiveRecord
       end
 
       def const_missing(const_name)
-        case const_name
-        when *frames.keys
+        if (frame = defined_frames[const_name])
           columns
-          result = frames[const_name].call
+          result = instance_exec(&frame)
           # Reset frame context on base class. Cache invalidation is
           # handled automatically by current_frame= setter.
           base_class.current_frame = nil

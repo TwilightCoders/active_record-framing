@@ -47,8 +47,11 @@ module ActiveRecord
         # Create a completely clean relation using base_class for STI children
         # This removes default_scope, type condition, and frames to avoid bind parameter issues
         # The default_scope is applied in the outer query, not in the CTE
-        # For STI children, use base_class to avoid type condition in CTE
-        klass_for_relation = (self < ActiveRecord::Base && base_class != self) ? base_class : self
+        # For STI children, use base_class to avoid type condition in CTE.
+        # A subclass with its own table (e.g. PostgreSQL table inheritance)
+        # must frame its own table, not its base class's.
+        sti_child = self < ActiveRecord::Base && base_class != self && base_class.table_name == table_name
+        klass_for_relation = sti_child ? base_class : self
         klass_for_relation.unscoped.spawn
       end
 
@@ -73,6 +76,13 @@ module ActiveRecord
 
       def frames
         @frames ||= {}
+      end
+
+      # Frames defined on this class and its ancestors; a subclass's own
+      # definition wins over an inherited one of the same name.
+      def defined_frames
+        inherited = superclass.respond_to?(:defined_frames) ? superclass.defined_frames : {}
+        inherited.merge(frames)
       end
 
       def ignore_default_scope
@@ -199,22 +209,24 @@ module ActiveRecord
 
         valid_frame_name?(constant)
 
-        arel_tn = "#{frame_name}/#{self.table_name}"
-
-        # The interface for creating an arel_table changes between arel versions.
-        # Ultimately, we just need a copy with its "table name" changed.
-        at = arel_table.clone.tap do |a_t|
-          a_t.name = arel_tn
-        end
-
+        # Evaluated against the class the frame is called on, so a subclass
+        # with its own table frames that table rather than the definer's.
         frames[constant] = Proc.new do
-          # Prevents the type condition from being in the frame (CTE)
-          rel = relation#_without_type_condition
-          build_frame([body].compact, at, rel, &block)
+          build_frame([body].compact, frame_arel_table(frame_name), relation, &block)
         end
       end
 
       private
+
+        # A copy of the model's (unframed) arel_table renamed for the frame.
+        # The interface for creating an arel_table changes between arel versions;
+        # ultimately, we just need a copy with its "table name" changed.
+        def frame_arel_table(frame_name)
+          table = ignore_frames? ? arel_table : evaluate_default_frame { arel_table }
+          table.clone.tap do |a_t|
+            a_t.name = "#{frame_name}/#{table_name}"
+          end
+        end
 
         def valid_frame_name?(name)
           if frames.key?(name) && logger

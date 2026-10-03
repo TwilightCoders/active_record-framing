@@ -112,16 +112,39 @@ describe 'Frame Inheritance' do
 
   end
 
+  context 'with a subclass that has its own table' do
+    let!(:post)          { Post.create!(title: 'post', scope: 1) }
+    let!(:draft)         { Draft.create!(title: 'draft', scope: 1) }
+    let!(:deleted_draft) { Draft.create!(title: 'gone', scope: 1, deleted_at: Time.now) }
+
+    it 'builds the inherited default_frame from its own table' do
+      expect(Draft.all.to_sql).to match_sql(<<~SQL)
+        WITH "drafts" AS (SELECT "drafts".* FROM "drafts" WHERE "drafts"."deleted_at" IS NULL)
+        SELECT "drafts".* FROM "drafts"
+      SQL
+      expect(Draft.all).to contain_exactly(draft)
+    end
+
+    it 'inherits named frames, built from its own table' do
+      expect(Draft::Deleted.to_sql).to include('FROM "drafts"')
+      expect(Draft::Deleted).to contain_exactly(deleted_draft)
+    end
+
+    it 'leaves the parent frames on the parent table' do
+      expect(Post.all).to contain_exactly(post)
+      expect(Post::Deleted).to be_empty
+    end
+  end
+
   context 'with named frames' do
     it 'child class can access parent named frames' do
       # User defines User::All via frame :all, -> {}
-      # This triggers const_missing and returns a Relation
       expect(User::All).to be_a(ActiveRecord::Relation)
 
-      # However, Admin::All does NOT automatically inherit from User
-      # const_missing only checks the class's own frames, not parent frames
-      # This is expected behavior - named frames don't inherit
-      expect { Admin::All }.to raise_error(NameError, /uninitialized constant Admin::All/)
+      # Named frames inherit like constants, and keep the STI type condition
+      expect(Admin::All).to be_a(ActiveRecord::Relation)
+      expect(Admin::All.model).to eq(Admin) if Admin::All.respond_to?(:model)
+      expect(Admin::All.to_sql).to include('"type"')
     end
   end
 
