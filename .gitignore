@@ -86,3 +86,7 @@ Thumbs.db
 /.qlty/out
 /.qlty/results
 /.qlty/plugin_cachedir
+
+# Appraisal lockfiles and Combustion test logs
+/gemfiles/*.lock
+/spec/support/rails/log

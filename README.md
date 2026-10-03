@@ -1,6 +1,6 @@
 [![License     ](https://img.shields.io/github/license/TwilightCoders/active_record-framing.svg)]()
 [![Version     ](https://img.shields.io/gem/v/active_record-framing.svg)](https://rubygems.org/gems/active_record-framing)
-[![Build Status](https://travis-ci.org/TwilightCoders/active_record-framing.svg)](https://travis-ci.org/TwilightCoders/active_record-framing)
+[![Build Status](https://github.com/TwilightCoders/active_record-framing/actions/workflows/ci.yml/badge.svg)](https://github.com/TwilightCoders/active_record-framing/actions/workflows/ci.yml)
 [![Maintenence ](https://api.codeclimate.com/v1/badges/762cdcd63990efa768b0/maintainability)](https://codeclimate.com/github/TwilightCoders/active_record-framing/maintainability)
 [![Coverage    ](https://codeclimate.com/github/TwilightCoders/active_record-framing/badges/coverage.svg)](https://codeclimate.com/github/TwilightCoders/active_record-framing/coverage)
 
@@ -12,10 +12,10 @@ Unlike scopes, they do not affect the values of attributes upon creation.
 
 ## Requirements
 
-- Ruby 2.3+
-- ActiveRecord 4.2+
+- Ruby 2.7+
+- ActiveRecord 5.1 – 8.x (PostgreSQL)
 
-_Note: Check the builds to be sure your version is in-fact supported. The requirements are left unbounded on the upper constraint for posterity, but may not be gaurenteed to work._
+_Note: Check the builds to be sure your version is in-fact supported. CI covers ActiveRecord 5.1 through 8.0._
 
 ## Installation
 
