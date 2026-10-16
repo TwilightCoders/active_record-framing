@@ -16,6 +16,13 @@
   receiving class's table.
 - Keep the framed table through `#except`/`#only` on ActiveRecord 6.0 (fixes
   `exists?`/`empty?` on named frames).
+- Rename `AttributeMethods::BLACKLISTED_CLASS_CONSTS` to `RESTRICTED_FRAME_CONSTS`
+  (frozen); the old name remains as a deprecated alias.
+- Freeze `FrameRegistry::VALID_SCOPE_TYPES`.
+- Remove the unused `ActiveRecord::Framing::Associations` module.
+- Specs: bind-parameter coverage for `prepared_statements: false`, a larger
+  connection pool for the concurrency specs, `DATABASE_URL` support in the test
+  database config, and an `.actrc` for running CI locally with `act`.
 - Handles automatic creation of framed relations
   - has_many :users produces has_many :deleted_users etc
 
