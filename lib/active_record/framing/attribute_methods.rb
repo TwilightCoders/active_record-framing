@@ -3,13 +3,15 @@ module ActiveRecord
     module AttributeMethods
       extend ActiveSupport::Concern
 
-      BLACKLISTED_CLASS_CONSTS = %w(unframed)
+      RESTRICTED_FRAME_CONSTS = %w(unframed).freeze
+      # Deprecated alias, kept for backwards compatibility.
+      BLACKLISTED_CLASS_CONSTS = RESTRICTED_FRAME_CONSTS
 
       module ClassMethods
         # A class const is 'dangerous' if it is already defined by Active Record, but
         # not by any ancestors. (So 'All' is not dangerous but 'Frameless' is.)
         def dangerous_class_const?(const_name)
-          BLACKLISTED_CLASS_CONSTS.include?(const_name.to_s) || class_const_defined_within?(const_name, Base)
+          RESTRICTED_FRAME_CONSTS.include?(const_name.to_s) || class_const_defined_within?(const_name, Base)
         end
 
         def class_const_defined_within?(name, klass, superklass = klass.superclass) # :nodoc:

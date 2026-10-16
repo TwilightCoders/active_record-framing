@@ -6,3 +6,6 @@ test:
   database: active_record-framing-test
   prepared_statements: false
   pool: 10
+<% if ENV['DATABASE_URL'] %>
+  url: <%= ENV['DATABASE_URL'] %>
+<% end %>

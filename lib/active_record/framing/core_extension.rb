@@ -156,7 +156,7 @@ module ActiveRecord
         instance.set_value_for(frame_type, model, value)
       end
 
-      VALID_SCOPE_TYPES = [:current_frame, :ignore_frames, :predicate_builder, :table_metadata, :reframe_values]
+      VALID_SCOPE_TYPES = [:current_frame, :ignore_frames, :predicate_builder, :table_metadata, :reframe_values].freeze
 
       attr_accessor :disabled
 
