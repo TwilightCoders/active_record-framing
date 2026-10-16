@@ -9,13 +9,12 @@ describe 'Model Inheritance' do
       let(:model) { Admin.all }
 
       it 'should not repeat inheritance scope' do
-        # Admin inherits User's default_frame (kind IS NOT NULL) in the CTE
-        # The STI type condition is applied in the outer SELECT
-        type_condition = rx('"users"\."type" (IN|=) .+')
-
+        # Admin inherits User's default_frame (kind IS NOT NULL) in the CTE.
+        # The CTE carries no type condition; the outer SELECT is the stock
+        # relation, so it is whatever Admin's default_scope produces.
         expect(subject).to match_sql(<<~SQL)
-          WITH "users" AS (SELECT "users".* FROM "users" WHERE #{rx('.*?')})
-          SELECT "users".* FROM "users" WHERE #{type_condition}
+          WITH "users" AS (SELECT "users".* FROM "users" WHERE "users"."kind" IS NOT NULL)
+          #{Admin.unframed.to_sql}
         SQL
       end
     end

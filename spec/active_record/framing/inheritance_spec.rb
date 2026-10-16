@@ -7,11 +7,11 @@ describe 'Frame Inheritance' do
     describe 'inheriting parent default_frame' do
       it 'child class inherits parent default_frame' do
         # Admin < User, User has default_frame { where.not(kind: nil) }
-        type_condition = rx('"users"\."type" (IN|=) .+')
-
+        # The outer query is exactly the stock (unframed) relation, including
+        # Admin's default_scope.
         expect(Admin.all.to_sql).to match_sql(<<~SQL)
           WITH "users" AS (SELECT "users".* FROM "users" WHERE #{rx('\\(?')}"users"."kind" IS NOT NULL#{rx('\\)?')})
-          SELECT "users".* FROM "users" WHERE #{type_condition}
+          #{Admin.unframed.to_sql}
         SQL
       end
 

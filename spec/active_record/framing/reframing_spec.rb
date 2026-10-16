@@ -4,7 +4,9 @@ describe ActiveRecord::Framing do
 
   context 'when creating records' do
     it 'does not apply frames' do
-      user = User.create!(name: 'bob')
+      # Outside unscoped, User's default_scope (kind = 1) would set kind;
+      # the frame must not set anything.
+      user = User.unscoped { User.create!(name: 'bob') }
       expect(user.kind).to_not eq(1)
     end
   end

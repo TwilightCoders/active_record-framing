@@ -69,7 +69,10 @@ module ActiveRecord
 
       protected
 
-        def build_frame(frames, arel_table, base_rel = nil, &block)
+        # +outer_rel+ is the relation the frame is attached to (the outer
+        # query). It defaults to the bare +relation+; callers that need stock
+        # scoping (default_scope, current scope) pass it in.
+        def build_frame(frames, arel_table, base_rel = nil, outer_rel = nil, &block)
           cte_relation = frames.inject(base_rel.clone) do |collection, frame|
             frame = frame.respond_to?(:to_proc) ? frame : frame.method(:call)
             # Exec the frame, or grab the default_frame (by calling relation)
@@ -86,7 +89,7 @@ module ActiveRecord
 
           # Use relation (not relation_without_type_condition) so type condition is applied
           # For STI, this ensures the child class's type condition is in the outer query
-          relation.spawn.tap do |rel|
+          (outer_rel || relation).spawn.tap do |rel|
             rel.frame_clause = frame_clause
             rel.table = arel_table
             extension = Module.new(&block) if block_given?
@@ -171,7 +174,7 @@ module ActiveRecord
           table_name
         end
 
-        def build_default_frame(base_rel = nil)
+        def build_default_frame(base_rel = nil, outer_rel = nil)
           return if abstract_class?
           return if ignore_frames?
           return if ActiveRecord::Framing.disabled?
@@ -187,7 +190,7 @@ module ActiveRecord
             evaluate_default_frame do
               cte_table = default_arel_table
               base = base_rel || relation_with_default_scope
-              build_frame(frames_to_build, cte_table, base)
+              build_frame(frames_to_build, cte_table, base, outer_rel)
             end
           end
         end

@@ -2,6 +2,14 @@ require "spec_helper"
 
 describe 'ActiveRecord Method Integration' do
 
+  # These examples exercise the default *frame* across ActiveRecord's query
+  # API over a User (kind 1) and an Admin (kind 2). User's default_scope
+  # (kind = 1) would hide the Admin, so lift User's default_scope; the
+  # default frame still applies. default_scope coverage: default_scope_spec.
+  around do |example|
+    User.unscoped { example.run }
+  end
+
   before do
     @user = User.create(name: 'Alice', kind: 1)
     @admin = Admin.create(name: 'Bob', kind: 2)

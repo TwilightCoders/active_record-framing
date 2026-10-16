@@ -183,10 +183,14 @@ describe 'Edge Cases' do
 
     it 'does not apply frame attributes to new records' do
       # The frame should not set default attributes
-      user = User.new
+      # Lift User's default_scope (kind = 1), which would set kind as in
+      # stock Rails; the frame is still active inside unscoped { }.
+      user = User.unscoped { User.new }
       # Even though frame filters by kind, it shouldn't SET kind
       # (kind defaults to 0 from database default, not from frame)
       expect(user.kind).to eq(0)
+      # The default_scope, by contrast, does set it.
+      expect(User.new.kind).to eq(1)
     end
 
   end

@@ -16,6 +16,11 @@
   receiving class's table.
 - Keep the framed table through `#except`/`#only` on ActiveRecord 6.0 (fixes
   `exists?`/`empty?` on named frames).
+- Fix: default-framed relations (`Model.all`, `count`, `where` chains, …) now
+  honor the model's `default_scope` and the current scope (`unscoped { }`,
+  `scoping { }`) in the outer query, matching stock ActiveRecord. Previously the
+  frame was attached to the bare relation, so the `default_scope` was silently
+  dropped and rows it excludes were returned.
 - Rename `AttributeMethods::BLACKLISTED_CLASS_CONSTS` to `RESTRICTED_FRAME_CONSTS`
   (frozen); the old name remains as a deprecated alias.
 - Freeze `FrameRegistry::VALID_SCOPE_TYPES`.

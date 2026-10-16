@@ -18,11 +18,8 @@ RSpec.describe 'Bind parameter handling with prepared_statements=false' do
       expect(sql).not_to include('$1')
     end
 
-    it 'applies the default_scope in the outer query of a default-framed relation' do
-      pending 'default-framed relations currently drop the model default_scope ' \
-              '(User.all omits WHERE kind = 1; User.unframed keeps it)'
-
-      # Should have actual value inline (kind = 1 from default_scope)
+    it 'inlines the default_scope value in the outer query' do
+      # kind = 1 comes from User's default_scope
       expect(User.all.to_sql).to match(/"users"\."kind" = \d+/)
     end
 

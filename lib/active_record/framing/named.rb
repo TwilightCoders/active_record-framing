@@ -33,7 +33,12 @@ module ActiveRecord
             unframed_all(*args, **kwargs).merge!(current_frame)
           end
         else
-          default_framed
+          # Attach the default frame to the stock relation so the
+          # default_scope (and any current scope, e.g. inside `unscoped { }`)
+          # applies to the outer query exactly as it would without framing.
+          # Built before the frame: default_scope evaluation is skipped while
+          # frames are being built.
+          default_framed(unframed_all(*args, **kwargs))
         end
       end
 
@@ -70,8 +75,15 @@ module ActiveRecord
       end
 
 
-      def default_framed(my_frame = relation_without_type_condition)
-        build_default_frame(relation_with_default_scope) || unframed_all
+      # +outer_rel+ is the relation the default frame is attached to. When
+      # omitted (association scopes, which already carry the default_scope),
+      # the frame is attached to the bare relation.
+      def default_framed(outer_rel = nil)
+        # A current scope that is already framed (e.g. `Post::Deleted.scoping { }`)
+        # keeps its own frame.
+        return outer_rel if outer_rel && outer_rel.frame_clause.any?
+
+        build_default_frame(relation_with_default_scope, outer_rel) || outer_rel || unframed_all
       end
 
       def frames
