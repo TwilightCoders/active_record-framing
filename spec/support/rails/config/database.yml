@@ -5,3 +5,4 @@ test:
   encoding: unicode
   database: active_record-framing-test
   prepared_statements: false
+  pool: 10
